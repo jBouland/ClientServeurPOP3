@@ -44,6 +44,8 @@ public class Server extends Thread {
       update
     };
     
+    private etat currentState;
+    
     private String user = "userMachin";
     private ArrayList<Mail> listMail;
 
@@ -102,37 +104,34 @@ public class Server extends Thread {
     private void retrieveAction(){
         
     }
-    private void statAction(){
-        String returnMessage = "+OK ";
+    private String statAction(){
+        if(etat.transaction != currentState){
+            System.out.println("-ERR Unsupported in this state");
+            return Pop3.ERR + " Unsupported in this state";
+        }
+        String returnMessage = Pop3.OK;
         int sizeMessage = 0;
-        File dir = new File(user);
+        File dir = new File(user + "\\mails");
         if(dir.exists()){
             File[] dirList = dir.listFiles();
             if(dirList != null){
                 for(File child : dirList){
                     try{
-                        BufferedReader br = new BufferedReader(new FileReader(child));
-                        StringBuilder sb = new StringBuilder();
-                        String line = br.readLine();
-                        while (line != null) {
-                            sb.append(line);
-                            sb.append(System.lineSeparator());
-                            line = br.readLine();
-                        }
-                        
-                        String message = sb.toString();
-                        Mail newMail = new Mail(message.getBytes());
+                        Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
                         sizeMessage += newMail.getContent().length;
                         listMail.add(newMail);
                         
                     } catch (IOException ex) {
                         System.err.println("Une erreur est survenue pendant la lecture du message");
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                        return Pop3.ERR + " internal server error";
                     }
                 }
             }
         }
+        returnMessage += " " + listMail.size() + " " + sizeMessage;
         
+        return returnMessage;
     }
     private void apopAction(){
         
