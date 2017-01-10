@@ -65,7 +65,7 @@ public class Server extends Thread {
                     System.out.println("Début réception");
                     byte[] message = new byte[512];
                     inFromClient.read(message);
-                    String stringifiedMessage = message.toString();
+                    String stringifiedMessage = message.toString().split(" ")[0];
                     
                     switch(stringifiedMessage){
                         case Pop3.APOP :
