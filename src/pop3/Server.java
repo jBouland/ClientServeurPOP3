@@ -6,27 +6,13 @@
 package pop3;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -64,13 +50,13 @@ public class Server extends Thread {
                 Socket connectionSocket = welcomeSocket.accept();
                 System.out.println("Connection acceptée !");
                 BufferedInputStream inFromClient = new BufferedInputStream(connectionSocket.getInputStream());
+                String response = "undefined";
 
                 while (inFromClient.available() > 0) {
                     System.out.println("Début réception");
                     byte[] message = new byte[512];
                     inFromClient.read(message);
                     String stringifiedMessage = message.toString().split(" ")[0];
-                    String response;
 
                     switch (stringifiedMessage) {
                         case Pop3.APOP:
@@ -86,15 +72,16 @@ public class Server extends Thread {
                             response = resetAction();
                             break;
                         case Pop3.RETR:
-                            response = apopAction();
+                            response = retrieveAction();
                             break;
                         case Pop3.STAT:
-                            response = apopAction();
+                            response = statAction();
                             break;
                     }
                 }
                 System.out.println("Fin réception, envoie de la réponse");
-                sendMessage(connectionSocket, user);
+                if(!response.equals("undefined"))
+                sendMessage(connectionSocket, response);
 
             }
         } catch (IOException ex) {
@@ -121,35 +108,33 @@ public class Server extends Thread {
     }
 
     private String statAction() {
-        String returnMessage = "+OK ";
+        if (etat.transaction != currentState) {
+            System.out.println("-ERR Unsupported in this state");
+            return Pop3.ERR + " Unsupported in this state";
+        }
+        String returnMessage = Pop3.OK;
         int sizeMessage = 0;
-        File dir = new File(user);
+        File dir = new File(user + "\\mails");
         if (dir.exists()) {
             File[] dirList = dir.listFiles();
             if (dirList != null) {
                 for (File child : dirList) {
                     try {
-                        BufferedReader br = new BufferedReader(new FileReader(child));
-                        StringBuilder sb = new StringBuilder();
-                        String line = br.readLine();
-                        while (line != null) {
-                            sb.append(line);
-                            sb.append(System.lineSeparator());
-                            line = br.readLine();
-                        }
-
-                        String message = sb.toString();
-                        Mail newMail = new Mail(message.getBytes());
+                        Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
                         sizeMessage += newMail.getContent().length;
                         listMail.add(newMail);
 
                     } catch (IOException ex) {
                         System.err.println("Une erreur est survenue pendant la lecture du message");
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                        return Pop3.ERR + " internal server error";
                     }
                 }
             }
         }
+        returnMessage += " " + listMail.size() + " " + sizeMessage;
+
+        return returnMessage;
     }
 
     private String apopAction(String message) {
