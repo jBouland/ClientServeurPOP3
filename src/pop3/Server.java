@@ -47,7 +47,7 @@ public class Server extends Thread {
 
     private etat currentState;
 
-    private String user = "userMachin";
+    private String user = "undefined";
     private ArrayList<Mail> listMail;
 
     public Server() {
@@ -70,24 +70,31 @@ public class Server extends Thread {
                     byte[] message = new byte[512];
                     inFromClient.read(message);
                     String stringifiedMessage = message.toString().split(" ")[0];
+                    String response;
 
                     switch (stringifiedMessage) {
                         case Pop3.APOP:
-                            apopAction(stringifiedMessage);
+                            response = apopAction(stringifiedMessage);
                             break;
                         case Pop3.DELETE:
+                            response = deleteAction();
                             break;
                         case Pop3.QUIT:
+                            response = quitAction();
                             break;
                         case Pop3.RESET:
+                            response = resetAction();
                             break;
                         case Pop3.RETR:
+                            response = apopAction();
                             break;
                         case Pop3.STAT:
+                            response = apopAction();
                             break;
                     }
                 }
-                System.out.println("Fin réception");
+                System.out.println("Fin réception, envoie de la réponse");
+                sendMessage(connectionSocket, user);
 
             }
         } catch (IOException ex) {
@@ -95,31 +102,33 @@ public class Server extends Thread {
         }
     }
 
-    private void deleteAction() {
+    private String deleteAction() {
+        return "not supported yet";
+    }
+
+    private String quitAction() {
+        return "not supported yet";
 
     }
 
-    private void quitAction() {
+    private String resetAction() {
+        return "not supported yet";
 
     }
 
-    private void resetAction() {
-
+    private String retrieveAction() {
+        return "not supported yet";
     }
 
-    private void retrieveAction() {
-
-    }
-
-    private void statAction(){
+    private String statAction() {
         String returnMessage = "+OK ";
         int sizeMessage = 0;
         File dir = new File(user);
-        if(dir.exists()){
+        if (dir.exists()) {
             File[] dirList = dir.listFiles();
-            if(dirList != null){
-                for(File child : dirList){
-                    try{
+            if (dirList != null) {
+                for (File child : dirList) {
+                    try {
                         BufferedReader br = new BufferedReader(new FileReader(child));
                         StringBuilder sb = new StringBuilder();
                         String line = br.readLine();
@@ -128,12 +137,12 @@ public class Server extends Thread {
                             sb.append(System.lineSeparator());
                             line = br.readLine();
                         }
-                        
+
                         String message = sb.toString();
                         Mail newMail = new Mail(message.getBytes());
                         sizeMessage += newMail.getContent().length;
                         listMail.add(newMail);
-                        
+
                     } catch (IOException ex) {
                         System.err.println("Une erreur est survenue pendant la lecture du message");
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
@@ -141,32 +150,51 @@ public class Server extends Thread {
                 }
             }
         }
-        
+        return returnMessage;
+
     }
 
     private String apopAction(String message) {
 
         if (currentState == etat.autorize) {
             String[] temp = message.split(" ");
-            String user = temp[1];
+            user = temp[1];
             String pass = temp[2];
             byte[] encoded;
 
             try {
-
                 encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
 
                 if (pass.equals(new String(encoded, "UTF-8"))) {
                     currentState = etat.transaction;
-                    return "OK";
+                    return Pop3.OK;
                 } else {
-                    return "Error : Authentication failed";
+                    return Pop3.ERR + " Authentication failed";
                 }
 
             } catch (IOException ex) {
                 Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        return "Error : wrong current state";
+        return Pop3.ERR + " wrong current state";
+    }
+
+    private void sendMessage(Socket connectionSocket, String msg) {
+        PrintWriter writeSock = null;
+        try {
+            writeSock = new PrintWriter(connectionSocket.getOutputStream());
+            OutputStream out = connectionSocket.getOutputStream();
+            out.write(("HTTP/1.1 200 OK").getBytes("UTF-8"));
+            out.write(("\r\nContent-Length: " + (int) msg.length()).getBytes("UTF-8"));
+            out.write(("\r\nContent-Type: " + "image/png" + "\n\n").getBytes());
+            out.write(msg.getBytes("UTF-8"));
+            out.flush();
+            out.close();
+        } catch (IOException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            writeSock.close();
+        }
+
     }
 }
