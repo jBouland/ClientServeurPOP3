@@ -150,8 +150,6 @@ public class Server extends Thread {
                 }
             }
         }
-        return returnMessage;
-
     }
 
     private String apopAction(String message) {
@@ -184,9 +182,6 @@ public class Server extends Thread {
         try {
             writeSock = new PrintWriter(connectionSocket.getOutputStream());
             OutputStream out = connectionSocket.getOutputStream();
-            out.write(("HTTP/1.1 200 OK").getBytes("UTF-8"));
-            out.write(("\r\nContent-Length: " + (int) msg.length()).getBytes("UTF-8"));
-            out.write(("\r\nContent-Type: " + "image/png" + "\n\n").getBytes());
             out.write(msg.getBytes("UTF-8"));
             out.flush();
             out.close();
