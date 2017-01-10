@@ -36,13 +36,16 @@ import java.util.logging.Logger;
  * @author Epulapp
  */
 public class Server extends Thread {
-    
+
     private enum etat {
-      autorize,
-      transaction,
-      update
+
+        autorize,
+        transaction,
+        update
     };
-    
+
+    private etat currentState;
+
     private String user = "userMachin";
 
     public Server() {
@@ -51,6 +54,7 @@ public class Server extends Thread {
     }
 
     public void run() {
+        currentState = etat.autorize;
         try {
 
             ServerSocket welcomeSocket = new ServerSocket(1080);
@@ -64,20 +68,21 @@ public class Server extends Thread {
                     byte[] message = new byte[512];
                     inFromClient.read(message);
                     String stringifiedMessage = message.toString().split(" ")[0];
-                    
-                    switch(stringifiedMessage){
-                        case Pop3.APOP :
-                                break;
-                        case Pop3.DELETE :
-                                break;
-                        case Pop3.QUIT :
-                                break;
-                        case Pop3.RESET :
-                                break;
-                        case Pop3.RETR :
-                                break;
-                        case Pop3.STAT :
-                                break;
+
+                    switch (stringifiedMessage) {
+                        case Pop3.APOP:
+                            apopAction(stringifiedMessage);
+                            break;
+                        case Pop3.DELETE:
+                            break;
+                        case Pop3.QUIT:
+                            break;
+                        case Pop3.RESET:
+                            break;
+                        case Pop3.RETR:
+                            break;
+                        case Pop3.STAT:
+                            break;
                     }
                 }
                 System.out.println("Fin réception");
@@ -87,25 +92,51 @@ public class Server extends Thread {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
-    private void deleteAction(){
-        
-    }
-    private void quitAction(){
-        
-    }
-    private void resetAction(){
-        
-    }
-    private void retrieveAction(){
-        
-    }
-    private void statAction(){
-        File dir = new File(user);
-        
-    }
-    private void apopAction(){
-        
+
+    private void deleteAction() {
+
     }
 
+    private void quitAction() {
+
+    }
+
+    private void resetAction() {
+
+    }
+
+    private void retrieveAction() {
+
+    }
+
+    private void statAction() {
+        File dir = new File(user);
+
+    }
+
+    private String apopAction(String message) {
+
+        if (currentState == etat.autorize) {
+            String[] temp = message.split(" ");
+            String user = temp[1];
+            String pass = temp[2];
+            byte[] encoded;
+
+            try {
+
+                encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
+
+                if (pass.equals(new String(encoded, "UTF-8"))) {
+                    currentState = etat.transaction;
+                    return "OK";
+                } else {
+                    return "Error : Authentication failed";
+                }
+
+            } catch (IOException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return "Error : wrong current state";
+    }
 }
