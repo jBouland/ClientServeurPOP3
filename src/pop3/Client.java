@@ -3,6 +3,7 @@ package pop3;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
@@ -21,14 +22,18 @@ import java.util.logging.Logger;
  */
 public class Client
 {
+    // User parameters
+    private String user = ""; // TODO
+    private String password = ""; // TODO
+
     // Client parameters
     private boolean delete = false;
-    private State state = State.LAUNCHED;
+    private State state = State.CLOSED;
     
     // TCP connexion
     private Socket socket;
     private BufferedInputStream in = null;
-    private BufferedOutputStream out = null;
+    private DataOutputStream out = null;
     
     // Error management
     private int code = 0;
@@ -55,7 +60,7 @@ public class Client
         try {
             socket = new Socket(hostName, port);
             in = new BufferedInputStream(socket.getInputStream());
-            out = new BufferedOutputStream(socket.getOutputStream());
+            out = new DataOutputStream(socket.getOutputStream());
         } catch (IOException ex) {
             if (ex instanceof SocketException) {
             } else if (ex instanceof UnknownHostException) {
@@ -65,17 +70,48 @@ public class Client
         }
     }
     
-    public void connection()
+    public void run() throws Exception
     {
+        state = State.WAIT_READY;
         try {
             String serverMsg = this.readFromServer();
-            String[] serverArray = serverMsg.split(" ");
+            String[] serverArray = serverMsg.split(" ", 3);
+            
+            if (serverArray[0].equalsIgnoreCase(Pop3.OK)) {
+                System.out.println("Connexion server réussie sur le port " + socket.getPort());
+                state = State.WAIT_APOP;
+                while (state == State.WAIT_APOP) {
+                    this.userConnection(user, password);
+                }
+                // Suite
+            } else {
+                throw new Exception(serverMsg);
+            }
 
             String request = "";
         } catch (IOException ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
         }
         
+    }
+    
+    public void userConnection(String username, String passwrod) throws IOException, Exception
+    {
+        // TODO MD5
+        String clientMsg = Pop3.APOP + " " + username + " " + password;
+        
+        // Send request
+        out.writeBytes(clientMsg);
+        out.flush();
+        
+        // Wait server response
+        String serverMsg = this.readFromServer();
+        String[] serverArray = serverMsg.split(" ", 3);
+        if (serverArray[0].equalsIgnoreCase(Pop3.OK)) {
+            state = State.WAIT_FOR_RETRIEVE;
+        } else {
+            state = State.WAIT_APOP;
+        }
     }
     
     private String readFromServer() throws IOException
@@ -101,6 +137,10 @@ public class Client
         int port = 110;
         
         Client client = new Client(host, port);
-        client.connection();
+        try {
+            client.run();
+        } catch (Exception ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 }
