@@ -11,6 +11,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import pop3.ResponsePop3.ResponseType;
 
 /**
  * Class Client
@@ -42,7 +43,6 @@ public class Client
 
     public enum State
     {
-        LAUNCHED,
         CLOSED,
         WAIT_READY,
         WAIT_APOP,
@@ -74,10 +74,9 @@ public class Client
     {
         state = State.WAIT_READY;
         try {
-            String serverMsg = this.readFromServer();
-            String[] serverArray = serverMsg.split(" ", 3);
-            
-            if (serverArray[0].equalsIgnoreCase(Pop3.OK)) {
+            ResponsePop3 response = this.readFromServer();
+
+            if (response.isOk()) {
                 System.out.println("Connexion server réussie sur le port " + socket.getPort());
                 state = State.WAIT_APOP;
                 while (state == State.WAIT_APOP) {
@@ -85,7 +84,7 @@ public class Client
                 }
                 // Suite
             } else {
-                throw new Exception(serverMsg);
+                throw new Exception(response.getMessage());
             }
 
             String request = "";
@@ -105,16 +104,17 @@ public class Client
         out.flush();
         
         // Wait server response
-        String serverMsg = this.readFromServer();
-        String[] serverArray = serverMsg.split(" ", 3);
-        if (serverArray[0].equalsIgnoreCase(Pop3.OK)) {
+        ResponsePop3 response = this.readFromServer();
+        if (response.isOk()) {
             state = State.WAIT_FOR_RETRIEVE;
-        } else {
+        } else if (response.isErr()) {
             state = State.WAIT_APOP;
+        } else {
+            throw new Exception("La réponse du server n'est pas correcte.");
         }
     }
     
-    private String readFromServer() throws IOException
+    private ResponsePop3 readFromServer() throws IOException, Exception
     {
         int dataRead , i;
         ArrayList<Byte> datas = new ArrayList();
@@ -128,8 +128,32 @@ public class Client
         for (i = 0; i < datas.size(); i++) {
             data[i] = datas.get(i);
         }
+        
+        System.out.println(new String(data));
+        String response = new String(data);
+        ResponseType type = getExpectedResponseType();
 
-        return new String(data);
+        return new ResponsePop3(type, response);
+    }
+    
+    private ResponseType getExpectedResponseType()
+    {
+        switch (state) {
+            case WAIT_APOP:
+                return ResponseType.APOP_OK;
+            case WAIT_READY:
+                return ResponseType.READY_OK;
+            case WAIT_QUIT:
+                return ResponseType.QUIT_OK;
+            case WAIT_FOR_RETRIEVE:
+                return ResponseType.RETR_OK;
+            case WAIT_DELETE:
+                return ResponseType.DELE_OK;
+            case WAIT_STAT:
+                return ResponseType.STAT_OK;
+            default:
+                return ResponseType.ERR;
+        }
     }
 
     public static void main(String[] args) {
