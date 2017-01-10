@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -44,9 +45,10 @@ public class Server extends Thread {
     };
     
     private String user = "userMachin";
+    private ArrayList<Mail> listMail;
 
     public Server() {
-
+        listMail = new ArrayList();
         this.start();
     }
 
@@ -101,7 +103,35 @@ public class Server extends Thread {
         
     }
     private void statAction(){
+        String returnMessage = "+OK ";
+        int sizeMessage = 0;
         File dir = new File(user);
+        if(dir.exists()){
+            File[] dirList = dir.listFiles();
+            if(dirList != null){
+                for(File child : dirList){
+                    try{
+                        BufferedReader br = new BufferedReader(new FileReader(child));
+                        StringBuilder sb = new StringBuilder();
+                        String line = br.readLine();
+                        while (line != null) {
+                            sb.append(line);
+                            sb.append(System.lineSeparator());
+                            line = br.readLine();
+                        }
+                        
+                        String message = sb.toString();
+                        Mail newMail = new Mail(message.getBytes());
+                        sizeMessage += newMail.getContent().length;
+                        listMail.add(newMail);
+                        
+                    } catch (IOException ex) {
+                        System.err.println("Une erreur est survenue pendant la lecture du message");
+                        Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        }
         
     }
     private void apopAction(){
