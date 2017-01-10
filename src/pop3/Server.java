@@ -36,6 +36,14 @@ import java.util.logging.Logger;
  * @author Epulapp
  */
 public class Server extends Thread {
+    
+    private enum etat {
+      autorize,
+      transaction,
+      update
+    };
+    
+    private String user = "userMachin";
 
     public Server() {
 
@@ -93,6 +101,7 @@ public class Server extends Thread {
         
     }
     private void statAction(){
+        File dir = new File(user);
         
     }
     private void apopAction(){
