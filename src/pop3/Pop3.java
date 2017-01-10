@@ -11,11 +11,11 @@ package pop3;
  * The constants with whitespace at the end
  */
 public class Pop3 {
-    public static String APOP = "APOP ";
-    public static String QUIT = "QUIT ";
-    public static String STAT = "STAT ";
-    public static String DELETE = "DELE ";
-    public static String RETR = "RETR ";
-    public static String RESET = "RSET ";
+    public final static String APOP = "APOP ";
+    public final static String QUIT = "QUIT ";
+    public final static String STAT = "STAT ";
+    public final static String DELETE = "DELE ";
+    public final static String RETR = "RETR ";
+    public final static String RESET = "RSET ";
     
 }
