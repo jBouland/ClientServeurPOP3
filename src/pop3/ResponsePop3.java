@@ -11,10 +11,14 @@ package pop3;
  */
 public class ResponsePop3
 {
-    private ResponseType type;
+    private ResponseType type = null;
     private String statut = "";
     private String message = "";
-    
+
+    private int nbMails = 0;
+    private int mailSize = 0;
+    private Mail mail = null;
+
     public enum ResponseType
     {
         APOP_OK(2),
@@ -68,6 +72,25 @@ public class ResponsePop3
         } else {
             this.type = type;
         }
+        
+        // Hydrating response
+        String[] parameters = message.split(Pop3.SEPARATOR, type.nbParts);
+        switch (type) {
+            case STAT_OK :
+                this.nbMails = Integer.valueOf(parameters[1]);
+                this.mailSize = Integer.valueOf(parameters[2]);
+                break;
+            case LIST_OK:
+            case RETR_OK:
+                this.mailSize = Integer.valueOf(parameters[1]);
+                this.mail = this.hydrateMail(parameters[type.nbParts - 1]);
+            case DELE_OK:
+                this.nbMails = Integer.valueOf(parameters[2]);
+                break;
+            default:
+                this.message = parameters[1];
+                break;
+        }
     }
     
     @Override
@@ -86,5 +109,69 @@ public class ResponsePop3
         }
         
         return s;
+    }
+
+    public ResponseType getType() {
+        return type;
+    }
+
+    public void setType(ResponseType type) {
+        this.type = type;
+    }
+
+    public String getStatut() {
+        return statut;
+    }
+
+    public void setStatut(String statut) {
+        this.statut = statut;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public int getNbMails() {
+        return nbMails;
+    }
+
+    public void setNbMails(int nbMails) {
+        this.nbMails = nbMails;
+    }
+
+    public int getMailSize() {
+        return mailSize;
+    }
+
+    public void setMailSize(int mailSize) {
+        this.mailSize = mailSize;
+    }
+    
+    public boolean isOk()
+    {
+        return statut.equalsIgnoreCase(Pop3.OK);
+    }
+    
+    public boolean isErr()
+    {
+        return statut.equalsIgnoreCase(Pop3.ERR);
+    }
+
+    public Mail getMail() {
+        return mail;
+    }
+
+    public void setMail(Mail mail) {
+        this.mail = mail;
+    }
+    
+    private Mail hydrateMail(String data) {
+        Mail mail = new Mail(data);
+        
+        return mail;
     }
 }

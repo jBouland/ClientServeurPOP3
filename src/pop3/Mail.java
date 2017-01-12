@@ -13,12 +13,18 @@ public class Mail
 {
     private boolean read = false;
     private boolean toDelete = false;
-    private byte[] content;
+    private String content;
     private int contentLength;
     
     public Mail(byte[] data)
     {
+        this.content = new String(data);
+    }
+
+    public Mail(String data)
+    {
         this.content = data;
+        this.contentLength = data.length();
     }
 
     public boolean isRead() {
@@ -37,12 +43,12 @@ public class Mail
         this.toDelete = toDelete;
     }
 
-    public byte[] getContent() {
+    public String getContent() {
         return content;
     }
 
     public void setContent(byte[] content) {
-        this.content = content;
+        this.content = new String(content);
     }
 
     public int getContentLength() {
