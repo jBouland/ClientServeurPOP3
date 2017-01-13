@@ -24,6 +24,7 @@ import java.util.logging.Logger;
  */
 public class Server extends Thread {
 
+
     private enum etat {
 
         autorize,
@@ -32,12 +33,14 @@ public class Server extends Thread {
     };
 
     private etat currentState;
+    private boolean closeConnection;
 
     private String user = "undefined";
     private ArrayList<Mail> listMail;
 
     public Server() {
         listMail = new ArrayList();
+        closeConnection = false;
         this.start();
     }
 
@@ -79,8 +82,13 @@ public class Server extends Thread {
                             break;
                     }
                 }
-                if(!response.equals("undefined")){
+                if (!response.equals("undefined")) {
                     sendMessage(connectionSocket, response);
+                }
+                if(closeConnection){
+                    connectionSocket.close();
+                    welcomeSocket.close();
+                    
                 }
 
             }
@@ -94,7 +102,28 @@ public class Server extends Thread {
     }
 
     private String quitAction() {
-        return "not supported yet";
+        String returnedMessage = "";
+        if (etat.transaction == currentState) {
+            try {
+                int nbsuppression = 0;
+                for (int i = 0; i < listMail.size(); i++) {
+                    if (listMail.get(i).isToDelete()) {
+                        listMail.remove(i);
+                        nbsuppression++;
+                    }
+                }
+                returnedMessage = Pop3.OK + " " + nbsuppression + " mails supprimés";
+
+            } catch (Exception e) {
+                returnedMessage = Pop3.ERR + " Erreur de suppression";
+            }
+
+        }
+
+        closeConnection = true;
+        returnedMessage += " Fermeture de la connection";
+        
+        return returnedMessage;
 
     }
 
