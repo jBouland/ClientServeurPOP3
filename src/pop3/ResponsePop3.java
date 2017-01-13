@@ -82,7 +82,7 @@ public class ResponsePop3
             case LIST_OK:
             case RETR_OK:
                 this.mailSize = Integer.valueOf(parameters[1]);
-                this.mail = this.hydrateMail(parameters[type.nbParts - 1]);
+                this.mail = this.hydrateMail(parameters[type.nbParts - 1]); // TODO !!!!
             case DELE_OK:
                 this.nbMails = Integer.valueOf(parameters[2]);
                 break;

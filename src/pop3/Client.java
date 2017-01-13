@@ -11,6 +11,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import pop3.RequestPop3.CommandPop3;
 import pop3.ResponsePop3.ResponseType;
 
 /**
@@ -23,8 +24,11 @@ import pop3.ResponsePop3.ResponseType;
  */
 public class Client
 {
+    public final static int TCP_CONNEXION_ATTEMPT = 3;
+    public final static int USER_CONNEXION_ATTEMPT = 3;
+    
     // User parameters
-    private String user = ""; // TODO
+    private String username = ""; // TODO
     private String password = ""; // TODO
 
     // Client parameters
@@ -32,6 +36,7 @@ public class Client
     private State state = State.CLOSED;
     
     // TCP connexion
+    private int port = 110;
     private Socket socket;
     private BufferedInputStream in = null;
     private DataOutputStream out = null;
@@ -57,6 +62,7 @@ public class Client
     
     public Client(String hostName, int port)
     {
+        this.port = port;
         try {
             socket = new Socket(hostName, port);
             in = new BufferedInputStream(socket.getInputStream());
@@ -72,32 +78,47 @@ public class Client
     
     public void run() throws Exception
     {
+        // Initialisation
+        ResponsePop3 serverResponse = null;
         state = State.WAIT_READY;
+        System.out.println("Connexion au serveur sur le port " + port + "...");
+        
         try {
-            ResponsePop3 response = this.readFromServer();
-
-            if (response.isOk()) {
-                System.out.println("Connexion server réussie sur le port " + socket.getPort());
+            serverResponse = this.readFromServer();
+            if (serverResponse.isOk()) {
+                // Connexion utilisateur
+                System.out.println("Connexion serveur réussie sur le port " + socket.getPort());
                 state = State.WAIT_APOP;
-                while (state == State.WAIT_APOP) {
-                    this.userConnection(user, password);
+                for (int i = 0; i < USER_CONNEXION_ATTEMPT; i++) {
+                    this.userConnection(username, password);
+                    if (state != State.WAIT_APOP) {
+                        System.out.println("Utilisateur " + username + " authentifié avec succès.");
+                        break;
+                    }
                 }
-                // Suite
-            } else {
-                throw new Exception(response.getMessage());
-            }
+                
+                // Envoi STAT
+                this.sendStatRequest();
+                serverResponse = this.readFromServer();
+                if (serverResponse.isOk()) {
+                    // Retrieve mails
+                    this.retrieveMails(serverResponse.getNbMails());
 
-            String request = "";
+                    // Suite
+                }
+            }
+            throw new Exception(serverResponse.getMessage());
         } catch (IOException ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
+            System.out.println(state + ": "+ ex.getMessage());
         }
-        
     }
     
-    public void userConnection(String username, String passwrod) throws IOException, Exception
+    private void userConnection(String username, String password) throws IOException, Exception
     {
         // TODO MD5
-        String clientMsg = Pop3.APOP + " " + username + " " + password;
+        String clientMsg = Pop3.APOP + Pop3.SEPARATOR + username + Pop3.SEPARATOR + password;
         
         // Send request
         out.writeBytes(clientMsg);
@@ -110,12 +131,48 @@ public class Client
         } else if (response.isErr()) {
             state = State.WAIT_APOP;
         } else {
-            throw new Exception("La réponse du server n'est pas correcte.");
+            throw new Exception("La réponse du serveur n'est pas correcte.");
         }
     }
     
+    private void sendStatRequest() throws IOException
+    {
+        this.sendRequest(new RequestPop3(CommandPop3.STAT));
+        state = State.WAIT_STAT;
+    }
+    
+    private Mail[] retrieveMails(int nbMails) throws Exception
+    {
+        state = State.WAIT_FOR_RETRIEVE;
+        Mail[] emails = new Mail[nbMails];
+
+        // Retrieve mails
+        for (int i = 0; i < nbMails; i++) {
+            // Retrieve mail i
+            Mail mail = this.retrieveMail(i + 1);
+            emails[i] = mail;
+        }
+
+        return emails;
+    }
+    
+    private Mail retrieveMail(int id) throws IOException, Exception {
+        int[] params = new int[] {id};
+        this.sendRequest(new RequestPop3(CommandPop3.RETRIEVE, params));
+        
+        ResponsePop3 retrieveResponse = this.readFromServer();
+        if (retrieveResponse.isOk()) {
+            // TODO create directory if doesn't exists (Mélanie)
+            // TODO write mail in local file (Mélanie)
+            return retrieveResponse.getMail();
+        } else {
+            throw new Exception(retrieveResponse.getMessage());
+        }
+    }
+
     private ResponsePop3 readFromServer() throws IOException, Exception
     {
+        // TODO : Check if that works
         int dataRead , i;
         ArrayList<Byte> datas = new ArrayList();
         while (in.available() == 0);
@@ -128,12 +185,17 @@ public class Client
         for (i = 0; i < datas.size(); i++) {
             data[i] = datas.get(i);
         }
-        
-        System.out.println(new String(data));
-        String response = new String(data);
-        ResponseType type = getExpectedResponseType();
 
-        return new ResponsePop3(type, response);
+        String response = new String(data);
+        System.out.println(response);
+
+        return new ResponsePop3(getExpectedResponseType(), response);
+    }
+    
+    private void sendRequest(RequestPop3 request) throws IOException
+    {
+        out.writeBytes(request.toString());
+        out.flush();
     }
     
     private ResponseType getExpectedResponseType()

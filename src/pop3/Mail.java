@@ -23,6 +23,7 @@ public class Mail
 
     public Mail(String data)
     {
+        // TODO set ID
         this.content = data;
         this.contentLength = data.length();
     }
@@ -57,5 +58,11 @@ public class Mail
 
     public void setContentLength(int contentLength) {
         this.contentLength = contentLength;
+    }
+    
+    @Override
+    public String toString()
+    {
+        return content;
     }
 }
