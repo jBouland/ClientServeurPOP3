@@ -6,8 +6,10 @@
 package pop3;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -49,22 +51,32 @@ public class Server extends Thread {
         try {
 
             ServerSocket welcomeSocket = new ServerSocket(1080);
+            Socket connectionSocket = null;
             while (true) {
-                Socket connectionSocket = welcomeSocket.accept();
-                System.out.println("Connection acceptée !");
-                BufferedInputStream inFromClient = new BufferedInputStream(connectionSocket.getInputStream());
+
+                if (connectionSocket == null) {
+                    connectionSocket = welcomeSocket.accept();
+                    System.out.println("Connection acceptée !");
+                }
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
+
                 String response = "undefined";
+                String stringifiedMessage;
 
-                while (inFromClient.available() > 0) {
+                while ((stringifiedMessage = in.readLine()) != null) {
                     System.out.println("Début réception");
-                    byte[] message = new byte[512];
-                    inFromClient.read(message);
-                    String command = message.toString().split(" ")[0];
-                    ArrayList<String> params = new ArrayList(Arrays.asList(message.toString().split(" ")));
-                    params.remove(0);
+                    response = "undefined";
 
+                    String command = stringifiedMessage.split(" ")[0];
+                    ArrayList<String> params = new ArrayList(Arrays.asList(stringifiedMessage.split(" ")));
+                    params.remove(0);
+                    System.out.println("params : " + params);
+                    System.out.println("command : " + command);
+                    System.out.println("Pop3 : " + Pop3.APOP);
                     switch (command) {
                         case Pop3.APOP:
+                            System.out.println("dans apop ?");
                             response = apopAction(params);
                             break;
                         case Pop3.DELETE:
@@ -83,14 +95,14 @@ public class Server extends Thread {
                             response = statAction();
                             break;
                     }
+                    if (!response.equals("undefined")) {
+                        sendMessage(connectionSocket, response);
+                    }
                 }
-                if (!response.equals("undefined")) {
-                    sendMessage(connectionSocket, response);
-                }
+                
                 if (closeConnection) {
                     connectionSocket.close();
                     welcomeSocket.close();
-
                 }
 
             }
@@ -115,7 +127,7 @@ public class Server extends Thread {
         } else {
             return Pop3.ERR + " Unsupported action in this state";
         }
-        return Pop3.OK + " mail number "+param.get(0)+" deleted";
+        return Pop3.OK + " mail number " + param.get(0) + " deleted";
 
     }
 
@@ -162,7 +174,7 @@ public class Server extends Thread {
                     returnMessage = Pop3.ERR + " This message was deleted";
                 }
 
-                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage) + "\r\n.\r\n";
+                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage).getContent() + "\r\n.\r\n";
                 return returnMessage;
 
             } catch (Exception e) {
@@ -178,7 +190,7 @@ public class Server extends Thread {
             System.out.println("-ERR Unsupported in this state");
             return Pop3.ERR + " Unsupported in this state";
         }
-        for(Mail m : listMail){
+        for (Mail m : listMail) {
             m.setToDelete(false);
         }
         return Pop3.OK + " Done";
@@ -215,6 +227,7 @@ public class Server extends Thread {
     }
 
     private String apopAction(ArrayList<String> params) {
+        System.out.println("on est dans APOP");
 
         if (currentState == etat.autorize) {
             try {
@@ -230,8 +243,9 @@ public class Server extends Thread {
                     return Pop3.ERR + " Authentication failed";
                 }
 
-            } catch (IOException ex) {
-                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Exception ex) {
+                System.out.println("exception");
+                return Pop3.ERR + " Authentication failed";
             }
         }
         return Pop3.ERR + " wrong current state";
@@ -240,15 +254,15 @@ public class Server extends Thread {
     private void sendMessage(Socket connectionSocket, String msg) {
         PrintWriter writeSock = null;
         try {
+            msg += "\r\n";
+            System.out.println(msg);
             writeSock = new PrintWriter(connectionSocket.getOutputStream());
             OutputStream out = connectionSocket.getOutputStream();
             out.write(msg.getBytes("UTF-8"));
             out.flush();
-            out.close();
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
-            writeSock.close();
         }
 
     }
