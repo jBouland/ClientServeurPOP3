@@ -25,7 +25,6 @@ import java.util.logging.Logger;
  */
 public class Server extends Thread {
 
-
     private enum etat {
 
         autorize,
@@ -69,7 +68,7 @@ public class Server extends Thread {
                             response = apopAction(params);
                             break;
                         case Pop3.DELETE:
-                            response = deleteAction();
+                            response = deleteAction(params);
                             break;
                         case Pop3.QUIT:
                             response = quitAction();
@@ -88,10 +87,10 @@ public class Server extends Thread {
                 if (!response.equals("undefined")) {
                     sendMessage(connectionSocket, response);
                 }
-                if(closeConnection){
+                if (closeConnection) {
                     connectionSocket.close();
                     welcomeSocket.close();
-                    
+
                 }
 
             }
@@ -100,8 +99,24 @@ public class Server extends Thread {
         }
     }
 
-    private String deleteAction() {
-        return "not supported yet";
+    private String deleteAction(ArrayList<String> param) {
+        if (etat.transaction == currentState) {
+            try {
+                int msgnumber = Integer.parseInt(param.get(0)) - 1;
+                if (listMail.size() < msgnumber) {
+                    return Pop3.ERR + " Mail not found";
+                } else {
+                    listMail.get(msgnumber).setToDelete(true);
+                }
+
+            } catch (Exception e) {
+                return Pop3.ERR + " can't set a mail to delete";
+            }
+        } else {
+            return Pop3.ERR + " Unsupported action in this state";
+        }
+        return Pop3.OK + " mail number "+param.get(0)+" deleted";
+
     }
 
     private String quitAction() {
@@ -115,17 +130,17 @@ public class Server extends Thread {
                         nbsuppression++;
                     }
                 }
-                returnedMessage = Pop3.OK + " " + nbsuppression + " mails supprimés";
+                returnedMessage = Pop3.OK + " " + nbsuppression + " mails deleted";
 
             } catch (Exception e) {
-                returnedMessage = Pop3.ERR + " Erreur de suppression";
+                returnedMessage = Pop3.ERR + " Delete error";
             }
 
         }
 
         closeConnection = true;
-        returnedMessage += " Fermeture de la connection";
-        
+        returnedMessage += " Closing connection...";
+
         return returnedMessage;
 
     }
@@ -133,24 +148,23 @@ public class Server extends Thread {
     private String retrieveAction(ArrayList<String> param) {
         String returnMessage = "";
         int numMessage;
-        if(currentState != etat.transaction){
+        if (currentState != etat.transaction) {
             return Pop3.ERR + " Unsupported action in this state";
         }
-        if(param.size() > 0){
+        if (param.size() > 0) {
             try {
-                numMessage = Integer.parseInt(param.get(0)) -1;
-                if(numMessage < 0 || numMessage >= listMail.size()){
-                   returnMessage = Pop3.ERR+" Message not found";
-                   return returnMessage;
+                numMessage = Integer.parseInt(param.get(0)) - 1;
+                if (numMessage < 0 || numMessage >= listMail.size()) {
+                    returnMessage = Pop3.ERR + " Message not found";
+                    return returnMessage;
                 }
-                if(listMail.get(numMessage).isToDelete()){
+                if (listMail.get(numMessage).isToDelete()) {
                     returnMessage = Pop3.ERR + " This message was deleted";
                 }
-                
-                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage)+"\r\n.\r\n";
+
+                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage) + "\r\n.\r\n";
                 return returnMessage;
-                    
-                
+
             } catch (Exception e) {
                 System.err.println("Wrong parameter in retrieveAction : " + param.get(0));
                 returnMessage = Pop3.ERR + "Wrong parameter";
@@ -162,7 +176,6 @@ public class Server extends Thread {
     private String resetAction() {
         return "not supported yet";
     }
-
 
     private String statAction() {
         if (etat.transaction != currentState) {
