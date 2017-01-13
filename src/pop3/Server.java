@@ -91,8 +91,34 @@ public class Server extends Thread {
 
     }
 
-    private void retrieveAction() {
-
+    private String retrieveAction(String stringifiedMessage) {
+        String returnMessage = "";
+        int numMessage;
+        if(currentState != etat.transaction){
+            return Pop3.ERR + " Unsupported action in this state";
+        }
+        String[] param = stringifiedMessage.split(" ");
+        if(param.length > 0){
+            try {
+                numMessage = Integer.parseInt(param[1]) -1;
+                if(numMessage < 0 || numMessage >= listMail.size()){
+                   returnMessage = Pop3.ERR+" Message not found";
+                   return returnMessage;
+                }
+                if(listMail.get(numMessage).isToDelete()){
+                    returnMessage = Pop3.ERR + " This message was deleted";
+                }
+                
+                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage)+"\r\n.\r\n";
+                return returnMessage;
+                    
+                
+            } catch (Exception e) {
+                System.err.println("Wrong parameter in retrieveAction : " + param[1]);
+                returnMessage = Pop3.ERR + "Wrong parameter";
+            }
+        }
+        return returnMessage;
     }
 
     private String statAction(){
