@@ -158,7 +158,14 @@ public class Server extends Thread {
     }
 
     private String resetAction() {
-        return "not supported yet";
+        if (etat.transaction != currentState) {
+            System.out.println("-ERR Unsupported in this state");
+            return Pop3.ERR + " Unsupported in this state";
+        }
+        for(Mail m : listMail){
+            m.setToDelete(false);
+        }
+        return Pop3.OK + " Done";
     }
 
 
