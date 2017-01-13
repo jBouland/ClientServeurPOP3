@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,7 +24,6 @@ import java.util.logging.Logger;
  * @author Epulapp
  */
 public class Server extends Thread {
-
 
     private enum etat {
 
@@ -59,14 +59,16 @@ public class Server extends Thread {
                     System.out.println("Début réception");
                     byte[] message = new byte[512];
                     inFromClient.read(message);
-                    String stringifiedMessage = message.toString().split(" ")[0];
+                    String command = message.toString().split(" ")[0];
+                    ArrayList<String> params = new ArrayList(Arrays.asList(message.toString().split(" ")));
+                    params.remove(0);
 
-                    switch (stringifiedMessage) {
+                    switch (command) {
                         case Pop3.APOP:
-                            response = apopAction(stringifiedMessage);
+                            response = apopAction(params);
                             break;
                         case Pop3.DELETE:
-                            response = deleteAction();
+                            response = deleteAction(params);
                             break;
                         case Pop3.QUIT:
                             response = quitAction();
@@ -75,7 +77,7 @@ public class Server extends Thread {
                             response = resetAction();
                             break;
                         case Pop3.RETR:
-                            response = retrieveAction(stringifiedMessage);
+                            response = retrieveAction(params);
                             break;
                         case Pop3.STAT:
                             response = statAction();
@@ -85,10 +87,10 @@ public class Server extends Thread {
                 if (!response.equals("undefined")) {
                     sendMessage(connectionSocket, response);
                 }
-                if(closeConnection){
+                if (closeConnection) {
                     connectionSocket.close();
                     welcomeSocket.close();
-                    
+
                 }
 
             }
@@ -97,8 +99,24 @@ public class Server extends Thread {
         }
     }
 
-    private String deleteAction() {
-        return "not supported yet";
+    private String deleteAction(ArrayList<String> param) {
+        if (etat.transaction == currentState) {
+            try {
+                int msgnumber = Integer.parseInt(param.get(0)) - 1;
+                if (listMail.size() < msgnumber) {
+                    return Pop3.ERR + " Mail not found";
+                } else {
+                    listMail.get(msgnumber).setToDelete(true);
+                }
+
+            } catch (Exception e) {
+                return Pop3.ERR + " can't set a mail to delete";
+            }
+        } else {
+            return Pop3.ERR + " Unsupported action in this state";
+        }
+        return Pop3.OK + " mail number "+param.get(0)+" deleted";
+
     }
 
     private String quitAction() {
@@ -112,45 +130,43 @@ public class Server extends Thread {
                         nbsuppression++;
                     }
                 }
-                returnedMessage = Pop3.OK + " " + nbsuppression + " mails supprimés";
+                returnedMessage = Pop3.OK + " " + nbsuppression + " mails deleted";
 
             } catch (Exception e) {
-                returnedMessage = Pop3.ERR + " Erreur de suppression";
+                returnedMessage = Pop3.ERR + " Delete error";
             }
 
         }
 
         closeConnection = true;
-        returnedMessage += " Fermeture de la connection";
-        
+        returnedMessage += " Closing connection...";
+
         return returnedMessage;
 
     }
 
-    private String retrieveAction(String stringifiedMessage) {
+    private String retrieveAction(ArrayList<String> param) {
         String returnMessage = "";
         int numMessage;
-        if(currentState != etat.transaction){
+        if (currentState != etat.transaction) {
             return Pop3.ERR + " Unsupported action in this state";
         }
-        String[] param = stringifiedMessage.split(" ");
-        if(param.length > 0){
+        if (param.size() > 0) {
             try {
-                numMessage = Integer.parseInt(param[1]) -1;
-                if(numMessage < 0 || numMessage >= listMail.size()){
-                   returnMessage = Pop3.ERR+" Message not found";
-                   return returnMessage;
+                numMessage = Integer.parseInt(param.get(0)) - 1;
+                if (numMessage < 0 || numMessage >= listMail.size()) {
+                    returnMessage = Pop3.ERR + " Message not found";
+                    return returnMessage;
                 }
-                if(listMail.get(numMessage).isToDelete()){
+                if (listMail.get(numMessage).isToDelete()) {
                     returnMessage = Pop3.ERR + " This message was deleted";
                 }
-                
-                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage)+"\r\n.\r\n";
+
+                returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage) + "\r\n.\r\n";
                 return returnMessage;
-                    
-                
+
             } catch (Exception e) {
-                System.err.println("Wrong parameter in retrieveAction : " + param[1]);
+                System.err.println("Wrong parameter in retrieveAction : " + param.get(0));
                 returnMessage = Pop3.ERR + "Wrong parameter";
             }
         }
@@ -167,7 +183,6 @@ public class Server extends Thread {
         }
         return Pop3.OK + " Done";
     }
-
 
     private String statAction() {
         if (etat.transaction != currentState) {
@@ -199,15 +214,13 @@ public class Server extends Thread {
         return returnMessage;
     }
 
-    private String apopAction(String message) {
+    private String apopAction(ArrayList<String> params) {
 
         if (currentState == etat.autorize) {
-            String[] temp = message.split(" ");
-            user = temp[1];
-            String pass = temp[2];
-            byte[] encoded;
-
             try {
+                user = params.get(0);
+                String pass = params.get(1);
+                byte[] encoded;
                 encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
 
                 if (pass.equals(new String(encoded, "UTF-8"))) {
