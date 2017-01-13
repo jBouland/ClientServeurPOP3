@@ -122,7 +122,7 @@ public class Client
                 serverResponse = this.readFromServer();
                 if (serverResponse.isOk()) {
                     // Retrieve mails
-                    mails = this.retrieveMails(serverResponse.getNbMails());
+                    this.retrieveMails(serverResponse.getNbMails());
 
                     // Suite
                 }

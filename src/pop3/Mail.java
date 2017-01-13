@@ -55,7 +55,7 @@ public class Mail
                 } 
             } else if(i >=6 && i < lines.length){
                 String message = this.getMessage();
-                // Verifier que ça n'enlève pas les sauts de ligne
+                // TODO : Verifier que ça n'enlève pas les sauts de ligne
                 String concat = message.concat(lines[i]);
                 this.setMessage(concat);
             }
