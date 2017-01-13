@@ -11,12 +11,12 @@ package pop3;
  */
 public class ResponsePop3
 {
-    private ResponseType type;
+    private ResponseType type = null;
     private String statut = "";
     private String message = "";
     private int nbMails = 0;
     private int mailSize = 0;
-    private String mailContent = null;
+    private Mail mail = null;
 
     public enum ResponseType
     {
@@ -82,7 +82,7 @@ public class ResponsePop3
             case LIST_OK:
             case RETR_OK:
                 this.mailSize = Integer.valueOf(parameters[1]);
-                this.mailContent = parameters[type.nbParts - 1];
+                this.mail = this.hydrateMail(parameters[type.nbParts - 1]);
             case DELE_OK:
                 this.nbMails = Integer.valueOf(parameters[2]);
                 break;
@@ -158,5 +158,19 @@ public class ResponsePop3
     public boolean isErr()
     {
         return statut.equalsIgnoreCase(Pop3.ERR);
+    }
+
+    public Mail getMail() {
+        return mail;
+    }
+
+    public void setMail(Mail mail) {
+        this.mail = mail;
+    }
+    
+    private Mail hydrateMail(String data) {
+        Mail mail = new Mail(data);
+        
+        return mail;
     }
 }
