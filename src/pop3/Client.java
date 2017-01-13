@@ -64,6 +64,11 @@ public class Client
         DISPLAY_MESSAGE
     }
     
+    public Client()
+    {
+        this("localhost", 110);
+    }
+    
     public Client(String hostName, int port)
     {
         this.port = port;
