@@ -31,9 +31,10 @@ public class Client
     private String username = ""; // TODO
     private String password = ""; // TODO
 
-    // Client parameters
+    // Client parameters & variables
     private boolean delete = false;
     private State state = State.CLOSED;
+    private Mail[] mails = null;
     
     // TCP connexion
     private int port = 110;
@@ -75,7 +76,23 @@ public class Client
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
+    public boolean isDelete() {
+        return delete;
+    }
+
+    public void setDelete(boolean delete) {
+        this.delete = delete;
+    }
+
+    public Mail[] getMails() {
+        return mails;
+    }
+
+    public void setMails(Mail[] mails) {
+        this.mails = mails;
+    }
+
     public void run() throws Exception
     {
         // Initialisation
@@ -102,7 +119,7 @@ public class Client
                 serverResponse = this.readFromServer();
                 if (serverResponse.isOk()) {
                     // Retrieve mails
-                    this.retrieveMails(serverResponse.getNbMails());
+                    mails = this.retrieveMails(serverResponse.getNbMails());
 
                     // Suite
                 }
@@ -143,23 +160,35 @@ public class Client
     
     private Mail[] retrieveMails(int nbMails) throws Exception
     {
-        state = State.WAIT_FOR_RETRIEVE;
+        
         Mail[] emails = new Mail[nbMails];
 
         // Retrieve mails
         for (int i = 0; i < nbMails; i++) {
             // Retrieve mail i
+            
             Mail mail = this.retrieveMail(i + 1);
             emails[i] = mail;
+            
+            // Delete email i
+            if (delete) {
+                this.deleteMail(i + 1);
+            }
         }
 
         return emails;
     }
     
     private Mail retrieveMail(int id) throws IOException, Exception {
+        
+        // Set State
+        state = State.WAIT_FOR_RETRIEVE;
+        
+        // Initialisation
         int[] params = new int[] {id};
         this.sendRequest(new RequestPop3(CommandPop3.RETRIEVE, params));
         
+        // Handle request & response
         ResponsePop3 retrieveResponse = this.readFromServer();
         if (retrieveResponse.isOk()) {
             // TODO create directory if doesn't exists (Mélanie)
@@ -169,13 +198,29 @@ public class Client
             throw new Exception(retrieveResponse.getMessage());
         }
     }
+    
+    private boolean deleteMail(int id) throws IOException, Exception {
+        // Set State
+        state = State.WAIT_DELETE;
+        
+        // Initialisation
+        int[] params = new int[] {id};
+        this.sendRequest(new RequestPop3(CommandPop3.DELETE, params));
+        
+        // Handle request & response
+        ResponsePop3 retrieveResponse = this.readFromServer();
+        if (retrieveResponse.isErr()) {
+            System.err.println(state + ": DELETE - " + retrieveResponse.getMessage());
+        }
+        return retrieveResponse.isOk();
+    }
 
     private ResponsePop3 readFromServer() throws IOException, Exception
     {
         // TODO : Check if that works
         int dataRead , i;
         ArrayList<Byte> datas = new ArrayList();
-        while (in.available() == 0);
+        //while (in.available() == 0);
         while ((dataRead = in.read()) != -1) {
             byte b = (byte) dataRead;
             datas.add(b);
