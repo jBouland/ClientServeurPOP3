@@ -4,6 +4,9 @@ package pop3;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
@@ -179,8 +182,7 @@ public class Client
         return emails;
     }
     
-    private Mail retrieveMail(int id) throws IOException, Exception {
-        
+    private Mail retrieveMail(int id) throws IOException, Exception {        
         // Set State
         state = State.WAIT_FOR_RETRIEVE;
         
@@ -191,12 +193,31 @@ public class Client
         // Handle request & response
         ResponsePop3 retrieveResponse = this.readFromServer();
         if (retrieveResponse.isOk()) {
-            // TODO create directory if doesn't exists (Mélanie)
-            // TODO write mail in local file (Mélanie)
-            return retrieveResponse.getMail();
+            Mail m = retrieveResponse.getMail();
+            writeInsideDirectory(m.getMessageID(),m);
+            return m;
         } else {
             throw new Exception(retrieveResponse.getMessage());
         }
+    }
+    
+    private void writeInsideDirectory(int messageId, Mail mail) throws IOException {
+        
+        File dir = new File(System.getProperty("user.dir") + "\\ClientMail\\");
+        if (!dir.exists()) {
+            dir.mkdir();
+            File dir2 = new File(System.getProperty("user.dir") + "\\ClientMail\\"+ this.username);
+            if(!dir2.exists()){
+                dir2.mkdir();
+            }
+        }
+        
+        File file = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username + "\\" + messageId);
+        
+        FileOutputStream outputStream = null;
+        outputStream = new FileOutputStream(file);        
+        outputStream.write(mail.getContent().getBytes());
+        outputStream.close();
     }
     
     private boolean deleteMail(int id) throws IOException, Exception {
