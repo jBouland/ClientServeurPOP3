@@ -19,12 +19,13 @@ public class Mail
     public Mail(byte[] data)
     {
         this.content = new String(data);
+        this.contentLength = data.length;
     }
 
     public Mail(String data)
     {
         this.content = data;
-        this.contentLength = data.length();
+        this.contentLength = data.getBytes().length;
     }
 
     public boolean isRead() {

@@ -52,7 +52,7 @@ public class Server extends Thread {
 
             ServerSocket welcomeSocket = new ServerSocket(1080);
             Socket connectionSocket = null;
-            while (true) {
+            while (!closeConnection) {
 
                 if (connectionSocket == null) {
                     connectionSocket = welcomeSocket.accept();
@@ -64,7 +64,7 @@ public class Server extends Thread {
                 String response = "undefined";
                 String stringifiedMessage;
 
-                while ((stringifiedMessage = in.readLine()) != null) {
+                while (!closeConnection && (stringifiedMessage = in.readLine()) != null) {
                     System.out.println("Début réception");
                     response = "undefined";
 
@@ -98,11 +98,11 @@ public class Server extends Thread {
                     if (!response.equals("undefined")) {
                         sendMessage(connectionSocket, response);
                     }
-                }
-                
-                if (closeConnection) {
-                    connectionSocket.close();
-                    welcomeSocket.close();
+
+                    if (closeConnection) {
+                        connectionSocket.close();
+                        welcomeSocket.close();
+                    }
                 }
 
             }
@@ -119,6 +119,7 @@ public class Server extends Thread {
                     return Pop3.ERR + " Mail not found";
                 } else {
                     listMail.get(msgnumber).setToDelete(true);
+                    System.out.println("delete : " + listMail.get(msgnumber).isToDelete());
                 }
 
             } catch (Exception e) {
@@ -170,17 +171,20 @@ public class Server extends Thread {
                     returnMessage = Pop3.ERR + " Message not found";
                     return returnMessage;
                 }
+                System.out.println("retr : " + listMail.get(numMessage).isToDelete());
                 if (listMail.get(numMessage).isToDelete()) {
-                    returnMessage = Pop3.ERR + " This message was deleted";
+                    return Pop3.ERR + " This message was deleted";
                 }
 
                 returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage).getContent() + "\r\n.\r\n";
                 return returnMessage;
 
             } catch (Exception e) {
-                System.err.println("Wrong parameter in retrieveAction : " + param.get(0));
-                returnMessage = Pop3.ERR + "Wrong parameter";
+                System.err.println(" Wrong parameter in retrieveAction : " + param.get(0));
+                returnMessage = Pop3.ERR + " Wrong parameter";
             }
+        } else {
+            returnMessage = Pop3.ERR + " Missing parameter";
         }
         return returnMessage;
     }
@@ -210,7 +214,7 @@ public class Server extends Thread {
                 for (File child : dirList) {
                     try {
                         Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
-                        sizeMessage += newMail.getContent().length;
+                        sizeMessage += newMail.getContentLength();
                         listMail.add(newMail);
 
                     } catch (IOException ex) {
