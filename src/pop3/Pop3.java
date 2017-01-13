@@ -1,4 +1,3 @@
-
 package pop3;
 
 /**
@@ -11,6 +10,8 @@ package pop3;
  */
 public class Pop3
 {
+    public final static String SEPARATOR = " ";
+    
     public final static String OK = "+OK";
     public final static String ERR = "-ERR";
     
