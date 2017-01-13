@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,11 +60,13 @@ public class Server extends Thread {
                     System.out.println("Début réception");
                     byte[] message = new byte[512];
                     inFromClient.read(message);
-                    String stringifiedMessage = message.toString().split(" ")[0];
+                    String command = message.toString().split(" ")[0];
+                    ArrayList<String> params = new ArrayList(Arrays.asList(message.toString().split(" ")));
+                    params.remove(0);
 
-                    switch (stringifiedMessage) {
+                    switch (command) {
                         case Pop3.APOP:
-                            response = apopAction(stringifiedMessage);
+                            response = apopAction(params);
                             break;
                         case Pop3.DELETE:
                             response = deleteAction();
@@ -75,7 +78,7 @@ public class Server extends Thread {
                             response = resetAction();
                             break;
                         case Pop3.RETR:
-                            response = retrieveAction(stringifiedMessage);
+                            response = retrieveAction(params);
                             break;
                         case Pop3.STAT:
                             response = statAction();
@@ -127,16 +130,15 @@ public class Server extends Thread {
 
     }
 
-    private String retrieveAction(String stringifiedMessage) {
+    private String retrieveAction(ArrayList<String> param) {
         String returnMessage = "";
         int numMessage;
         if(currentState != etat.transaction){
             return Pop3.ERR + " Unsupported action in this state";
         }
-        String[] param = stringifiedMessage.split(" ");
-        if(param.length > 0){
+        if(param.size() > 0){
             try {
-                numMessage = Integer.parseInt(param[1]) -1;
+                numMessage = Integer.parseInt(param.get(0)) -1;
                 if(numMessage < 0 || numMessage >= listMail.size()){
                    returnMessage = Pop3.ERR+" Message not found";
                    return returnMessage;
@@ -150,7 +152,7 @@ public class Server extends Thread {
                     
                 
             } catch (Exception e) {
-                System.err.println("Wrong parameter in retrieveAction : " + param[1]);
+                System.err.println("Wrong parameter in retrieveAction : " + param.get(0));
                 returnMessage = Pop3.ERR + "Wrong parameter";
             }
         }
@@ -192,15 +194,13 @@ public class Server extends Thread {
         return returnMessage;
     }
 
-    private String apopAction(String message) {
+    private String apopAction(ArrayList<String> params) {
 
         if (currentState == etat.autorize) {
-            String[] temp = message.split(" ");
-            user = temp[1];
-            String pass = temp[2];
-            byte[] encoded;
-
             try {
+                user = params.get(0);
+                String pass = params.get(1);
+                byte[] encoded;
                 encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
 
                 if (pass.equals(new String(encoded, "UTF-8"))) {
