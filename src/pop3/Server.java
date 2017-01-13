@@ -79,9 +79,9 @@ public class Server extends Thread {
                             break;
                     }
                 }
-                System.out.println("Fin réception, envoie de la réponse");
-                if(!response.equals("undefined"))
-                sendMessage(connectionSocket, response);
+                if(!response.equals("undefined")){
+                    sendMessage(connectionSocket, response);
+                }
 
             }
         } catch (IOException ex) {
