@@ -2,15 +2,14 @@
 package pop3;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -123,7 +122,7 @@ public class Client
                 if (serverResponse.isOk()) {
                     // Retrieve mails
                     this.retrieveMails(serverResponse.getNbMails());
-
+                    this.readLocalMails();
                     // Suite
                 }
             }
@@ -201,8 +200,7 @@ public class Client
         }
     }
     
-    private void writeInsideDirectory(int messageId, Mail mail) throws IOException {
-        
+    private void writeInsideDirectory(int messageId, Mail mail) throws IOException {        
         File dir = new File(System.getProperty("user.dir") + "\\ClientMail\\");
         if (!dir.exists()) {
             dir.mkdir();
@@ -210,14 +208,27 @@ public class Client
             if(!dir2.exists()){
                 dir2.mkdir();
             }
-        }
-        
-        File file = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username + "\\" + messageId);
-        
+        }        
+        File file = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username + "\\" + messageId);        
         FileOutputStream outputStream = null;
         outputStream = new FileOutputStream(file);        
         outputStream.write(mail.getContent().getBytes());
         outputStream.close();
+    }
+    
+    private void readLocalMails() throws IOException{        
+        File dir = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username);
+        if (dir.exists()) {
+            File[] dirList = dir.listFiles();
+            if (dirList != null) {
+                for (File child : dirList) {
+                    // Getting file name which is mail id
+                    int messageNumber = Integer.parseInt(child.getName());
+                    Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
+                    this.mails[messageNumber] = newMail;
+                }
+            }
+        }
     }
     
     private boolean deleteMail(int id) throws IOException, Exception {
