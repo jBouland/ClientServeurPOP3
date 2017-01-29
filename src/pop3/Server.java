@@ -28,8 +28,8 @@ import java.util.logging.Logger;
 public class Server extends Thread {
 
     private enum etat {
-
-        autorize,
+        initial,
+        authorize,
         transaction,
         update
     };
@@ -47,7 +47,7 @@ public class Server extends Thread {
     }
 
     public void run() {
-        currentState = etat.autorize;
+        currentState = etat.initial;
         try {
 
             ServerSocket welcomeSocket = new ServerSocket(1080);
@@ -233,7 +233,7 @@ public class Server extends Thread {
     private String apopAction(ArrayList<String> params) {
         System.out.println("on est dans APOP");
 
-        if (currentState == etat.autorize) {
+        if (currentState == etat.authorize) {
             try {
                 user = params.get(0);
                 String pass = params.get(1);
@@ -251,6 +251,25 @@ public class Server extends Thread {
                 System.out.println("exception");
                 return Pop3.ERR + " Authentication failed";
             }
+        }
+        return Pop3.ERR + " wrong current state";
+    }
+    
+    private String readyAction() {
+        if (currentState == etat.initial) {
+            return Pop3.OK;
+//            try {
+//                if (pass.equals(new String(encoded, "UTF-8"))) {
+//                    currentState = etat.authorize;
+//                    return Pop3.OK;
+//                } else {
+//                    return Pop3.ERR + " Authentication failed";
+//                }
+//
+//            } catch (Exception ex) {
+//                System.out.println("exception");
+//                return Pop3.ERR + " Authentication failed";
+//            }
         }
         return Pop3.ERR + " wrong current state";
     }
