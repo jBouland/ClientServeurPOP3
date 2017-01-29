@@ -11,6 +11,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pop3.RequestPop3.CommandPop3;
@@ -36,7 +37,7 @@ public class Client
     // Client parameters & variables
     private boolean delete = false;
     private State state = State.CLOSED;
-    private Mail[] mails = null;
+    private List<Mail> mails = null;
     
     // TCP connexion
     private int port = 110;
@@ -92,11 +93,11 @@ public class Client
         this.delete = delete;
     }
 
-    public Mail[] getMails() {
+    public List<Mail> getMails() {
         return mails;
     }
 
-    public void setMails(Mail[] mails) {
+    public void setMails(List<Mail> mails) {
         this.mails = mails;
     }
 
@@ -165,25 +166,23 @@ public class Client
         state = State.WAIT_STAT;
     }
     
-    private Mail[] retrieveMails(int nbMails) throws Exception
+    private List<Mail> retrieveMails(int nbMails) throws Exception
     {
+        mails = new ArrayList();
         
-        Mail[] emails = new Mail[nbMails];
-
         // Retrieve mails
         for (int i = 0; i < nbMails; i++) {
             // Retrieve mail i
-            
             Mail mail = this.retrieveMail(i + 1);
-            emails[i] = mail;
+            mails.add(mail.getMessageID(), mail);
             
             // Delete email i
             if (delete) {
                 this.deleteMail(i + 1);
             }
         }
-
-        return emails;
+        
+        return mails;
     }
     
     private Mail retrieveMail(int id) throws IOException, Exception {        
@@ -198,7 +197,8 @@ public class Client
         ResponsePop3 retrieveResponse = this.readFromServer();
         if (retrieveResponse.isOk()) {
             Mail m = retrieveResponse.getMail();
-            writeInsideDirectory(m.getMessageID(),m);
+            m.setMessageID(id);
+            writeInsideDirectory(m.getMessageID(), m);
             return m;
         } else {
             throw new Exception(retrieveResponse.getMessage());
@@ -209,7 +209,7 @@ public class Client
         File dir = new File(System.getProperty("user.dir") + "\\ClientMail\\");
         if (!dir.exists()) {
             dir.mkdir();
-            File dir2 = new File(System.getProperty("user.dir") + "\\ClientMail\\"+ this.username);
+            File dir2 = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username);
             if(!dir2.exists()){
                 dir2.mkdir();
             }
@@ -228,9 +228,10 @@ public class Client
             if (dirList != null) {
                 for (File child : dirList) {
                     // Getting file name which is mail id
-                    int messageNumber = Integer.parseInt(child.getName());
+                    int messageId = Integer.parseInt(child.getName());
                     Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
-                    this.mails[messageNumber] = newMail;
+                    newMail.setMessageID(messageId);
+                    mails.add(newMail.getMessageID(), newMail);
                 }
             }
         }

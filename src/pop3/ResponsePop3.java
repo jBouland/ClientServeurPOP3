@@ -17,6 +17,7 @@ public class ResponsePop3
     private int nbMails = 0;
     private int mailSize = 0;
     private Mail mail = null;
+//    private int mailId;
 
     public enum ResponseType
     {
@@ -49,66 +50,23 @@ public class ResponsePop3
         this.statut = statut; // Pop3.OK OU Pop3.ERR
         this.message = message;
     }
-    
-    /**
-     * Constructor to retrieve message
-     * @param type
-     * @param message 
-     * @throws java.lang.Exception 
-     */
+
     public ResponsePop3(ResponseType type, String message) throws Exception
     {
-        String[] rawMessage = message.split(Pop3.SEPARATOR);
-        if (!rawMessage[0].equalsIgnoreCase(Pop3.OK) && !rawMessage[0].equalsIgnoreCase(Pop3.ERR)) {
-            // Error
-            throw new Exception("Le format de la réponse est invalide.");
-        }
-
-        // Setting message statut
-        statut = rawMessage[0];
-        if (statut.equalsIgnoreCase(Pop3.ERR)) {
-            this.type = ResponseType.ERR;
-        } else {
-            this.type = type;
-        }
-        
-        // Hydrating response
-        String[] parameters = message.split(Pop3.SEPARATOR, type.nbParts);
-        switch (type) {
-            case STAT_OK :
-                this.nbMails = Integer.valueOf(parameters[1]);
-                this.mailSize = Integer.valueOf(parameters[2]);
-                break;
-            case LIST_OK:
-            case RETR_OK:
-                this.mailSize = Integer.valueOf(parameters[1]);
-                this.mail = this.hydrateMail(parameters[type.nbParts - 1]); // TODO !!!!
-            case DELE_OK:
-                this.nbMails = Integer.valueOf(parameters[2]);
-                break;
-            default:
-                this.message = parameters[1];
-                break;
-        }
+        this.hydrateResponse(type, message/*, 0*/);
     }
     
-    @Override
-    public String toString()
-    {
-        String s = "";
-        
-        switch (type) {
-//            case ERR :
-//                break;
-//            case APOP_OK:
-//                break;
-            default:
-                s += this.statut + Pop3.SEPARATOR + this.message + "\r\n";
-            // TODO all cases
-        }
-        
-        return s;
-    }
+//    /**
+//     * Constructor for received response from server
+//     * @param type
+//     * @param message
+//     * @param id
+//     * @throws Exception 
+//     */
+//    public ResponsePop3(ResponseType type, String message, int id) throws Exception
+//    {
+//        this.hydrateResponse(type, message, id);
+//    }
 
     public ResponseType getType() {
         return type;
@@ -168,9 +126,71 @@ public class ResponsePop3
         this.mail = mail;
     }
     
-    private Mail hydrateMail(String data) {
-        Mail mail = new Mail(data);
+    @Override
+    public String toString()
+    {
+        String s = "";
         
-        return mail;
+        switch (type) {
+//            case ERR :
+//                break;
+//            case APOP_OK:
+//                break;
+            default:
+                s += this.statut + Pop3.SEPARATOR + this.message + Pop3.LINE_SEPARATOR;
+            // TODO all cases
+        }
+        
+        return s;
     }
+    
+    private void hydrateResponse(ResponseType type, String message/*, int id*/) throws Exception
+    {
+        String[] rawResponse = message.split(Pop3.LINE_SEPARATOR);
+        
+        // Read first line
+        String[] rawFirstLine = rawResponse[0].split(Pop3.SEPARATOR);
+        if (!rawFirstLine[0].equalsIgnoreCase(Pop3.OK) && !rawFirstLine[0].equalsIgnoreCase(Pop3.ERR)) {
+            // Error
+            throw new Exception("Le format de la réponse est invalide.");
+        }
+
+        // Setting message statut
+        statut = rawFirstLine[0];
+        if (statut.equalsIgnoreCase(Pop3.ERR)) {
+            this.type = ResponseType.ERR;
+        } else {
+            this.type = type;
+        }
+        
+//        if (id > 0) {
+//            this.mailId = id;
+//        }
+
+        // Hydrating response
+        String[] parameters = rawResponse[0].split(Pop3.SEPARATOR, type.nbParts);
+        switch (type) {
+            case STAT_OK :
+                this.nbMails = Integer.valueOf(parameters[1]);
+                this.mailSize = Integer.valueOf(parameters[2]);
+                break;
+            case LIST_OK:
+            case RETR_OK:
+                this.mailSize = Integer.valueOf(parameters[1]);
+                // Hydrating mail
+                String mailString = message.substring(rawResponse[0].length() + Pop3.LINE_SEPARATOR.length() + 1);
+//                this.mail = hydrateMail(mailId, mailString);
+                this.mail = new Mail(mailString);
+            case DELE_OK:
+                this.nbMails = Integer.valueOf(parameters[2]);
+                break;
+            default: // ERR, LIST, ...
+                this.message = parameters[1];
+                break;
+        }
+    }
+
+//    private Mail hydrateMail(int id, String data) {
+//        return new Mail(id, data);
+//    }
 }

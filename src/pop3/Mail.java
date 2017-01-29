@@ -20,45 +20,53 @@ public class Mail
     private String to;
     private String subject;
     private String date;
-    private String message;
+    private String message; // body
     
     public Mail(byte[] data)
     {
         this.content = new String(data);
     }
 
-    public Mail(String data, int id)
+    public Mail(String data)
     {
+//        this.messageID = id;
         this.content = data;
         this.contentLength = data.length();
-        this.setMessageID(id);
-        String lines[] = this.content.split("\\r?\\n");
-        // TODO : Rendre le traitement plus modulaire. Exemple : le message n'est pas à la norme ...
-        for(int i = 0 ; i < lines.length ; i++){
-            if(i < 6){
-               String line[] = lines[i].split(" ");
-                switch(i){
-                    case 0 :
-                        this.setFrom(line[1]);
-                        break;
-                    case 1 :
-                        this.setTo(line[1]);
-                        break;
-                    case 2 :
-                        this.setSubject(line[1]);
-                        break;
-                    case 3 :
-                        this.setDate(line[1]);
-                        break;
-                    default :
-                        break;
-                } 
-            } else if(i >=6 && i < lines.length){
-                String message = this.getMessage();
-                // TODO : Verifier que ça n'enlève pas les sauts de ligne
-                String concat = message.concat(lines[i]);
-                this.setMessage(concat);
-            }
+
+        int i = 0;
+        String lines[] = this.content.split(Pop3.LINE_SEPARATOR);
+
+        // Read headers
+        while(!lines[i].isEmpty() && i < lines.length) {
+            String[] line = lines[i].split(Pop3.HEADER_SEPARATOR);
+            String[] headerValues = line[1].split(Pop3.SEPARATOR);
+            switch (line[0]) {
+                case Pop3.HEADER_FROM :
+                    this.from = headerValues[1];
+                    break;
+                case Pop3.HEADER_TO :
+                    this.to = headerValues[1];
+                    break;
+                case Pop3.HEADER_SUBJECT :
+                    this.subject = line[1];
+                    break;
+                case Pop3.HEADER_DATE :
+                    this.date = line[1];
+                    break;
+            } 
+            i++;
+        }
+
+        // TODO Reader body
+        String message = "";
+        while (!lines[i].equals(Pop3.END_OF_MAIL) && i < lines.length) {
+            // TODO : Verifier que ça n'enlève pas les sauts de ligne
+            message += lines[i];
+            i++;
+        }
+        
+        if (!message.isEmpty()) {
+            this.message = message;
         }
     }
 
