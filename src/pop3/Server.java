@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package pop3;
 
 import java.io.BufferedInputStream;
@@ -22,8 +18,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
- * @author Epulapp
+ * Class Server
+ * 
+ * @author Joris BOULAND
+ * @author Tommy CABRELLI
+ * @author Mélanie DUBREUIL
+ * @author Ophélie EOUZAN
  */
 public class Server extends Thread {
 
@@ -34,29 +34,30 @@ public class Server extends Thread {
         update
     };
 
-    private etat currentState;
-    private boolean closeConnection;
+    private int port;
+    private etat currentState = etat.initial;
+    private boolean closeConnection = false;
 
     private String user = "undefined";
-    private ArrayList<Mail> listMail;
-
-    public Server() {
-        listMail = new ArrayList();
-        closeConnection = false;
-        this.start();
+    private ArrayList<Mail> listMail = new ArrayList();
+    
+    public Server(int port)
+    {
+        this.port = port;
     }
 
+    @Override
     public void run() {
-        currentState = etat.initial;
         try {
-
-            ServerSocket welcomeSocket = new ServerSocket(1080);
+            // Initialization
+            ServerSocket welcomeSocket = new ServerSocket(port);
             Socket connectionSocket = null;
             while (!closeConnection) {
 
                 if (connectionSocket == null) {
                     connectionSocket = welcomeSocket.accept();
                     System.out.println("Connection acceptée !");
+                    sendMessage(connectionSocket, readyAction());
                 }
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
@@ -122,7 +123,8 @@ public class Server extends Thread {
                     System.out.println("delete : " + listMail.get(msgnumber).isToDelete());
                 }
 
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
+                System.err.println("Exception: " + e.getMessage());
                 return Pop3.ERR + " can't set a mail to delete";
             }
         } else {
@@ -179,7 +181,7 @@ public class Server extends Thread {
                 returnMessage = Pop3.OK + " " + listMail.get(numMessage).getContentLength() + "\r\n" + listMail.get(numMessage).getContent() + "\r\n.\r\n";
                 return returnMessage;
 
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 System.err.println(" Wrong parameter in retrieveAction : " + param.get(0));
                 returnMessage = Pop3.ERR + " Wrong parameter";
             }
@@ -247,8 +249,8 @@ public class Server extends Thread {
                     return Pop3.ERR + " Authentication failed";
                 }
 
-            } catch (Exception ex) {
-                System.out.println("exception");
+            } catch (IOException ex) {
+                System.err.println("Exception: " + ex.getMessage());
                 return Pop3.ERR + " Authentication failed";
             }
         }
@@ -257,19 +259,8 @@ public class Server extends Thread {
     
     private String readyAction() {
         if (currentState == etat.initial) {
-            return Pop3.OK;
-//            try {
-//                if (pass.equals(new String(encoded, "UTF-8"))) {
-//                    currentState = etat.authorize;
-//                    return Pop3.OK;
-//                } else {
-//                    return Pop3.ERR + " Authentication failed";
-//                }
-//
-//            } catch (Exception ex) {
-//                System.out.println("exception");
-//                return Pop3.ERR + " Authentication failed";
-//            }
+            currentState = etat.authorize;
+            return Pop3.OK + " POP3 server ready";
         }
         return Pop3.ERR + " wrong current state";
     }
