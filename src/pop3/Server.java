@@ -52,11 +52,13 @@ public class Server extends Thread {
             // Initialization
             ServerSocket welcomeSocket = new ServerSocket(port);
             Socket connectionSocket = null;
-            while (!closeConnection) {
+            while (true) {
 
                 if (connectionSocket == null) {
                     connectionSocket = welcomeSocket.accept();
                     System.out.println("Connection acceptée !");
+                    currentState = etat.initial;
+                    closeConnection = false;
                     sendMessage(connectionSocket, readyAction());
                 }
 
@@ -102,7 +104,8 @@ public class Server extends Thread {
 
                     if (closeConnection) {
                         connectionSocket.close();
-                        welcomeSocket.close();
+                        connectionSocket = null;
+                        //welcomeSocket.close();
                     }
                 }
 
@@ -154,7 +157,7 @@ public class Server extends Thread {
         }
 
         closeConnection = true;
-        returnedMessage += " Closing connection...";
+        returnedMessage += " Connection ended";
 
         return returnedMessage;
 
