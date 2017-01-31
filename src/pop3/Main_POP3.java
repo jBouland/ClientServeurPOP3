@@ -1,13 +1,13 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package pop3;
 
 /**
- *
- * @author Epulapp
+ * Class Main
+ * 
+ * @author Joris BOULAND
+ * @author Tommy CABRELLI
+ * @author Mélanie DUBREUIL
+ * @author Ophélie EOUZAN
  */
 public class Main_POP3 {
 
@@ -15,7 +15,8 @@ public class Main_POP3 {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        // TODO code application logic here
+        Server s = new Server(3000);
+        s.start();
     }
     
 }
