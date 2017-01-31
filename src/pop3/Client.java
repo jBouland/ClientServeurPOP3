@@ -279,6 +279,7 @@ public class Client
                         int messageId = Integer.parseInt(child.getName());
                         Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
                         newMail.setMessageID(messageId);
+                        newMail.setRead(true);
                         mails.put(newMail.getMessageID(), newMail);
                     }
                 }
