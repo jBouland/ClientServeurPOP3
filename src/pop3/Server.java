@@ -74,10 +74,10 @@ public class Server extends Thread {
                     params.remove(0);
                     System.out.println("params : " + params);
                     System.out.println("command : " + command);
-                    System.out.println("Pop3 : " + Pop3.APOP);
+                    //System.out.println("Pop3 : " + Pop3.APOP);
                     switch (command) {
                         case Pop3.APOP:
-                            System.out.println("dans apop ?");
+                            //System.out.println("dans apop ?");
                             response = apopAction(params);
                             break;
                         case Pop3.DELETE:
@@ -204,7 +204,7 @@ public class Server extends Thread {
 
     private String statAction() {
         if (etat.transaction != currentState) {
-            System.out.println("-ERR Unsupported in this state");
+            //System.out.println("-ERR Unsupported in this state");
             return Pop3.ERR + " Unsupported in this state";
         }
         String returnMessage = Pop3.OK;
@@ -249,8 +249,11 @@ public class Server extends Thread {
                     return Pop3.ERR + " Authentication failed";
                 }
 
-            } catch (IOException ex) {
-                System.err.println("Exception: " + ex.getMessage());
+            } catch (IOException | IndexOutOfBoundsException ex) {
+                System.err.println(ex.getMessage());
+                if (ex instanceof IndexOutOfBoundsException) {
+                    System.err.println("APOP requires 2 parameters : user and password");
+                }
                 return Pop3.ERR + " Authentication failed";
             }
         }

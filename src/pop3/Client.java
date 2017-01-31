@@ -2,10 +2,12 @@
 package pop3;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -44,9 +46,8 @@ public class Client
     private Map<Integer, Mail> mails = new HashMap();
     
     // TCP connexion
-    private int port = 110;
     private Socket socket = null;
-    private BufferedInputStream in = null;
+    private /*BufferedInputStream*/BufferedReader in = null;
     private DataOutputStream out = null;
     
     // Error management
@@ -75,17 +76,17 @@ public class Client
     
     public Client(String hostName, int port)
     {
-        this.port = port;
+        System.out.println("Connexion au serveur sur le port " + port + "...");
         try {
             socket = new Socket(hostName, port);
-            in = new BufferedInputStream(socket.getInputStream());
+            //in = new BufferedInputStream(socket.getInputStream());
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new DataOutputStream(socket.getOutputStream());
         } catch (IOException ex) {
             if (ex instanceof SocketException) {
             } else if (ex instanceof UnknownHostException) {
             } else {
             }
-            //Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
             System.err.println(ex.getMessage());
         }
     }
@@ -119,8 +120,8 @@ public class Client
             // Initialisation
             ResponsePop3 serverResponse = null;
             state = State.WAIT_READY;
-            System.out.println("Connexion au serveur sur le port " + port + "...");
-
+            System.out.println("Connection TCP established");
+            
             try {
                 serverResponse = this.readFromServer();
                 if (serverResponse.isOk()) {
@@ -309,24 +310,36 @@ public class Client
 
     private ResponsePop3 readFromServer() throws IOException, Exception
     {
-        // TODO : Check if that works
-        int dataRead , i;
-        ArrayList<Byte> datas = new ArrayList();
-        //while (in.available() == 0);
-        while ((dataRead = in.read()) != -1) {
-            byte b = (byte) dataRead;
-            datas.add(b);
-            if (b == -1) break;
+        System.out.println("Waiting server...");
+        
+        
+//        
+//        // TODO : Check if that works
+//        int dataRead , i;
+//        ArrayList<Byte> datas = new ArrayList();
+//        //while (in.available() == 0);
+//        while ((dataRead = in.read()) != -1) {
+//            System.out.println(dataRead);
+//            byte b = (byte) dataRead;
+//            datas.add(b);
+//            if (b == -1) break;
+//        }
+//        byte[] data = new byte[datas.size()];
+//        for (i = 0; i < datas.size(); i++) {
+//            data[i] = datas.get(i);
+//        }
+        
+        String line, content = "";
+        
+        while ((line = in.readLine()) != null) {
+            System.out.println(line);
+            content += line + "\n";
         }
-        byte[] data = new byte[datas.size()];
-        for (i = 0; i < datas.size(); i++) {
-            data[i] = datas.get(i);
-        }
+        return new ResponsePop3(getExpectedResponseType(), content);
+//        String response = new String(data);
+//        System.out.println(response);
 
-        String response = new String(data);
-        System.out.println(response);
-
-        return new ResponsePop3(getExpectedResponseType(), response);
+        //return new ResponsePop3(getExpectedResponseType(), response);
     }
     
     private void sendRequest(RequestPop3 request) throws IOException

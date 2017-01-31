@@ -52,7 +52,7 @@ public class ResponsePop3
     }
 
     public ResponsePop3(ResponseType type, String message) throws Exception
-    {
+    {System.out.println(message);
         this.hydrateResponse(type, message/*, 0*/);
     }
 
