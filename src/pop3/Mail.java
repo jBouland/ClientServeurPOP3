@@ -16,20 +16,25 @@ public class Mail
     private String content;
     private int contentLength;
     private int messageID;
-    private String from;
-    private String to;
-    private String subject;
-    private String date;
-    private String message; // body
+    private String from = "";
+    private String to = "";
+    private String subject = "";
+    private String date = "";
+    private String message = ""; // body
     
     public Mail(byte[] data)
     {
-        this.content = new String(data);
+        this.hydrate(new String(data));
     }
 
     public Mail(String data)
     {
-//        this.messageID = id;
+        this.hydrate(data);
+    }
+    
+    private void hydrate(String data)
+    {
+        //this.messageID = id;
         this.content = data;
         this.contentLength = data.length();
 
@@ -38,6 +43,7 @@ public class Mail
 
         // Read headers
         while(!lines[i].isEmpty() && i < lines.length) {
+            //System.out.println(lines[i]);
             String[] line = lines[i].split(Pop3.HEADER_SEPARATOR);
             String[] headerValues = line[1].split(Pop3.SEPARATOR);
             switch (line[0]) {
@@ -57,11 +63,10 @@ public class Mail
             i++;
         }
 
-        // TODO Reader body
         String message = "";
-        while (!lines[i].equals(Pop3.END_OF_MAIL) && i < lines.length) {
-            // TODO : Verifier que ça n'enlève pas les sauts de ligne
-            message += lines[i];
+        while (i < lines.length && !lines[i].equals(Pop3.END_OF_MAIL)) {
+            //System.out.println(lines[i]);
+            message += lines[i] + "\n";
             i++;
         }
         

@@ -10,8 +10,11 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pop3.RequestPop3.CommandPop3;
@@ -29,6 +32,7 @@ public class Client
 {
     public final static int TCP_CONNEXION_ATTEMPT = 3;
     public final static int USER_CONNEXION_ATTEMPT = 3;
+    private final static String CLIENT_HOME_DIR = "\\ClientHome\\";
     
     // User parameters
     private String username = ""; // TODO
@@ -37,11 +41,11 @@ public class Client
     // Client parameters & variables
     private boolean delete = false;
     private State state = State.CLOSED;
-    private List<Mail> mails = null;
+    private Map<Integer, Mail> mails = new HashMap();
     
     // TCP connexion
     private int port = 110;
-    private Socket socket;
+    private Socket socket = null;
     private BufferedInputStream in = null;
     private DataOutputStream out = null;
     
@@ -81,8 +85,16 @@ public class Client
             } else if (ex instanceof UnknownHostException) {
             } else {
             }
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            //Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            System.err.println(ex.getMessage());
         }
+    }
+    
+    public Client(String hostName, int port, String username, String password)
+    {
+        this(hostName, port);
+        this.username = username;
+        this.password = password;
     }
 
     public boolean isDelete() {
@@ -93,51 +105,71 @@ public class Client
         this.delete = delete;
     }
 
-    public List<Mail> getMails() {
+    public Map<Integer, Mail> getMails() {
         return mails;
     }
 
-    public void setMails(List<Mail> mails) {
+    public void setMails(Map<Integer, Mail> mails) {
         this.mails = mails;
     }
 
     public void run() throws Exception
     {
-        // Initialisation
-        ResponsePop3 serverResponse = null;
-        state = State.WAIT_READY;
-        System.out.println("Connexion au serveur sur le port " + port + "...");
-        
-        try {
-            serverResponse = this.readFromServer();
-            if (serverResponse.isOk()) {
-                // Connexion utilisateur
-                System.out.println("Connexion serveur réussie sur le port " + socket.getPort());
-                state = State.WAIT_APOP;
-                for (int i = 0; i < USER_CONNEXION_ATTEMPT; i++) {
-                    this.userConnection(username, password);
-                    if (state != State.WAIT_APOP) {
-                        System.out.println("Utilisateur " + username + " authentifié avec succès.");
-                        break;
-                    }
-                }
-                
-                // Envoi STAT
-                this.sendStatRequest();
+        if (socket != null) {
+            // Initialisation
+            ResponsePop3 serverResponse = null;
+            state = State.WAIT_READY;
+            System.out.println("Connexion au serveur sur le port " + port + "...");
+
+            try {
                 serverResponse = this.readFromServer();
                 if (serverResponse.isOk()) {
-                    // Retrieve mails
-                    this.retrieveMails(serverResponse.getNbMails());
-                    this.readLocalMails();
-                    // Suite
+                    // Connexion utilisateur
+                    System.out.println("Connexion serveur réussie sur le port " + socket.getPort());
+                    state = State.WAIT_APOP;
+                    for (int i = 0; i < USER_CONNEXION_ATTEMPT; i++) {
+                        this.userConnection(username, password);
+                        if (state != State.WAIT_APOP) {
+                            System.out.println("Utilisateur " + username + " authentifié avec succès.");
+                            break;
+                        }
+                    }
+
+                    // Envoi STAT
+                    this.sendStatRequest();
+                    serverResponse = this.readFromServer();
+                    if (serverResponse.isOk()) {
+                        // Retrieve mails
+                        this.retrieveMails(serverResponse.getNbMails());
+                        this.readLocalMails();
+                        // Suite
+                    }
                 }
+                throw new Exception(serverResponse.getMessage());
+            } catch (IOException ex) {
+                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Exception ex) {
+                System.out.println(state + ": "+ ex.getMessage());
             }
-            throw new Exception(serverResponse.getMessage());
-        } catch (IOException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (Exception ex) {
-            System.out.println(state + ": "+ ex.getMessage());
+        } else { // Connexion distante impossible, lecture en local.
+            try {
+                if (localUserConnection(username, password)) {
+                    System.out.println("Authentification locale réussie!");
+                    this.readLocalMails();
+                    System.out.println("\nListe des emails locaux :");
+                    for (Mail mail: mails.values()) {
+                        System.out.println(mail.getMessageID() + " - " + mail.getSubject());
+                    }
+                } else {
+                    System.out.println("Impossible de se connecter en local.");
+                }
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+            }
+            
         }
+        
+        //this.displayClient();
     }
     
     private void userConnection(String username, String password) throws IOException, Exception
@@ -168,13 +200,13 @@ public class Client
     
     private List<Mail> retrieveMails(int nbMails) throws Exception
     {
-        mails = new ArrayList();
+        List<Mail> emails = new ArrayList();
         
         // Retrieve mails
         for (int i = 0; i < nbMails; i++) {
             // Retrieve mail i
             Mail mail = this.retrieveMail(i + 1);
-            mails.add(mail.getMessageID(), mail);
+            emails.add(mail.getMessageID(), mail);
             
             // Delete email i
             if (delete) {
@@ -182,7 +214,7 @@ public class Client
             }
         }
         
-        return mails;
+        return emails;
     }
     
     private Mail retrieveMail(int id) throws IOException, Exception {        
@@ -213,7 +245,7 @@ public class Client
             if(!dir2.exists()){
                 dir2.mkdir();
             }
-        }        
+        }
         File file = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username + "\\" + messageId);        
         FileOutputStream outputStream = null;
         outputStream = new FileOutputStream(file);        
@@ -221,20 +253,41 @@ public class Client
         outputStream.close();
     }
     
-    private void readLocalMails() throws IOException{        
-        File dir = new File(System.getProperty("user.dir") + "\\ClientMail\\" + this.username);
-        if (dir.exists()) {
-            File[] dirList = dir.listFiles();
-            if (dirList != null) {
-                for (File child : dirList) {
-                    // Getting file name which is mail id
-                    int messageId = Integer.parseInt(child.getName());
-                    Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
-                    newMail.setMessageID(messageId);
-                    mails.add(newMail.getMessageID(), newMail);
+    private boolean localUserConnection(String username, String password) {
+        try {
+            byte[] localPass = Files.readAllBytes(Paths.get("ClientHome/" + username + ".txt"));
+            if (password.equals(new String(localPass, "UTF-8"))) {
+                return true;
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return false;
+    }
+    
+    private void readLocalMails() throws IOException {
+        File dir = new File(System.getProperty("user.dir") + CLIENT_HOME_DIR);
+        if (!dir.exists()) {
+            dir.mkdir();
+        } else {
+            File userDir = new File(System.getProperty("user.dir") + CLIENT_HOME_DIR + this.username);
+            if (userDir.exists()) {
+                File[] dirList = userDir.listFiles();
+                if (dirList != null) {
+                    for (File child : dirList) {
+                        // Getting file name which is mail id
+                        int messageId = Integer.parseInt(child.getName());
+                        Mail newMail = new Mail(Files.readAllBytes(child.toPath()));
+                        newMail.setMessageID(messageId);
+                        mails.put(newMail.getMessageID(), newMail);
+                    }
                 }
+            } else {
+                userDir.mkdir();
             }
         }
+        
+        
     }
     
     private boolean deleteMail(int id) throws IOException, Exception {
@@ -302,11 +355,8 @@ public class Client
     }
 
     public static void main(String[] args) {
-        String host = "localhost";
-        int port = 110;
-        
-        Client client = new Client(host, port);
         try {
+            Client client = new Client("localhost", 3000, "ophelie", "test");
             client.run();
         } catch (Exception ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
