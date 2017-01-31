@@ -268,6 +268,5 @@ public class Server extends Thread {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
         }
-
     }
 }
