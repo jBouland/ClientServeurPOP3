@@ -42,9 +42,9 @@ public class ConnectionPane extends javax.swing.JPanel {
         jLabel3.setText("Mot de passe");
 
         jButton1.setText("Se connecter");
-        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
-            jButton1ActionPerformed(evt);
-        });
+//        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
+//            jButton1ActionPerformed(evt);
+//        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);

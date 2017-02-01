@@ -26,9 +26,9 @@ public class DetailMailPane extends javax.swing.JPanel {
     
     public void initComponents(){
         jButton1 = new javax.swing.JButton();
-        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
-            retourVuePleine();
-        });
+//        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
+//            retourVuePleine();
+//        });
         
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();

@@ -143,11 +143,14 @@ public class Server extends Thread {
     private String quitAction() {
         String returnedMessage = "";
         if (etat.transaction == currentState || currentState == etat.authorize) {
+            //delete all mail from cache
+            listMail = new ArrayList<Mail>();
             try {
                 int nbsuppression = 0;
                 for (int i = 0; i < listMail.size(); i++) {
                     if (listMail.get(i).isToDelete()) {
                         listMail.remove(i);
+                        i--;
                         nbsuppression++;
                     }
                 }

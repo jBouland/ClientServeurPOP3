@@ -39,9 +39,9 @@ public class BoiteMailPane extends javax.swing.JPanel{
         jLabel1.setText("MailBox");
 
         jButton1.setText("Déconnexion");
-        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
+       /* jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
             clicDeconnecter();
-        });
+        });*/
         
         // TODO : Boucle de récupération des données du modèle
         // TODO : Mettre les nouveaux messages en gras
