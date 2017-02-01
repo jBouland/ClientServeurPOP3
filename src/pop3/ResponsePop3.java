@@ -1,6 +1,9 @@
 
 package pop3;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Class ResponsePop3
  * 
@@ -51,12 +54,16 @@ public class ResponsePop3
         this.message = message;
     }
 
-    public ResponsePop3(ResponseType type, String message) throws Exception
-    {System.out.println(message);
-        this.hydrateResponse(type, message/*, 0*/);
+    public ResponsePop3(ResponseType type, String message)
+    {
+        try {
+            this.hydrateResponse(type, message);
+        } catch (Exception ex) {
+            Logger.getLogger(ResponsePop3.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
-    private void hydrateResponse(ResponseType type, String message/*, int id*/) throws Exception
+    private void hydrateResponse(ResponseType responseType, String message) throws Exception
     {
         String[] rawResponse = message.split(Pop3.LINE_SEPARATOR);
         
@@ -70,14 +77,10 @@ public class ResponsePop3
         // Setting message statut
         statut = rawFirstLine[0];
         if (statut.equalsIgnoreCase(Pop3.ERR)) {
-            this.type = ResponseType.ERR;
+            type = ResponseType.ERR;
         } else {
-            this.type = type;
+            type = responseType;
         }
-
-//        if (id > 0) {
-//            this.mailId = id;
-//        }
 
         // Hydrating response
         String[] parameters = rawResponse[0].split(Pop3.SEPARATOR, type.nbParts);
@@ -87,16 +90,17 @@ public class ResponsePop3
                 this.mailSize = Integer.valueOf(parameters[2]);
                 break;
             case LIST_OK:
+                break;
             case RETR_OK:
                 this.mailSize = Integer.valueOf(parameters[1]);
                 // Hydrating mail
-                String mailString = message.substring(rawResponse[0].length() + Pop3.LINE_SEPARATOR.length() + 1);
-//                this.mail = hydrateMail(mailId, mailString);
+                String mailString = message.substring(rawResponse[0].length() + Pop3.LINE_SEPARATOR.length());
                 this.mail = new Mail(mailString);
+                break;
             case DELE_OK:
                 this.nbMails = Integer.valueOf(parameters[2]);
                 break;
-            default: // ERR, LIST, ...
+            default: // ERR, LIST, QUIT_OK...
                 this.message = parameters[1];
                 break;
         }

@@ -42,7 +42,7 @@ public class Mail
         String lines[] = this.content.split(Pop3.LINE_SEPARATOR);
 
         // Read headers
-        while(!lines[i].isEmpty() && i < lines.length) {
+        while(i < lines.length && !lines[i].isEmpty()) {
             //System.out.println(lines[i]);
             String[] line = lines[i].split(Pop3.HEADER_SEPARATOR);
             String[] headerValues = line[1].split(Pop3.SEPARATOR);
@@ -59,14 +59,17 @@ public class Mail
                 case Pop3.HEADER_DATE :
                     this.date = line[1];
                     break;
+                case Pop3.HEADER_READ :
+                    this.read = (line[1].trim().equalsIgnoreCase("YES"));
+                    break;
             } 
             i++;
         }
 
         String message = "";
-        while (i < lines.length && !lines[i].equals(Pop3.END_OF_MAIL)) {
+        while (i < lines.length && !lines[i].equals("."/*Pop3.END_OF_MAIL*/)) {
             //System.out.println(lines[i]);
-            message += lines[i] + "\n";
+            message += lines[i] + Pop3.LINE_SEPARATOR;
             i++;
         }
         
@@ -158,6 +161,21 @@ public class Mail
     @Override
     public String toString()
     {
-        return content;
+        //return content;
+        String s = "";
+
+        // Headers
+        if (!subject.isEmpty()) s += Pop3.HEADER_SUBJECT + Pop3.HEADER_SEPARATOR + subject + Pop3.LINE_SEPARATOR;
+        if (!from.isEmpty()) s += Pop3.HEADER_FROM + ": " + from + Pop3.LINE_SEPARATOR;
+        if (!to.isEmpty()) s += Pop3.HEADER_TO + ": " + to + Pop3.LINE_SEPARATOR;
+        if (!date.isEmpty()) s += Pop3.HEADER_DATE + ": " + date + Pop3.LINE_SEPARATOR;
+        if (read) s += Pop3.HEADER_READ + ": YES" + Pop3.LINE_SEPARATOR;
+        
+        // Separator
+        s += Pop3.LINE_SEPARATOR;
+        
+        // Body
+        if (!message.isEmpty()) s += message + Pop3.LINE_SEPARATOR;
+        return s;
     }
 }

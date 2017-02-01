@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -111,7 +112,9 @@ public class Server extends Thread {
 
             }
         } catch (IOException ex) {
-            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+            if (ex instanceof SocketException) {
+                System.err.println("Connexion interrompue par le client");
+            }
         }
     }
 
@@ -139,7 +142,7 @@ public class Server extends Thread {
 
     private String quitAction() {
         String returnedMessage = "";
-        if (etat.transaction == currentState) {
+        if (etat.transaction == currentState || currentState == etat.authorize) {
             try {
                 int nbsuppression = 0;
                 for (int i = 0; i < listMail.size(); i++) {
@@ -236,7 +239,7 @@ public class Server extends Thread {
     }
 
     private String apopAction(ArrayList<String> params) {
-        System.out.println("on est dans APOP");
+        //System.out.println("on est dans APOP");
 
         if (currentState == etat.authorize) {
             try {
@@ -247,7 +250,7 @@ public class Server extends Thread {
 
                 if (pass.equals(new String(encoded, "UTF-8"))) {
                     currentState = etat.transaction;
-                    return Pop3.OK;
+                    return Pop3.OK + " " + user + " authenticated";
                 } else {
                     return Pop3.ERR + " Authentication failed";
                 }

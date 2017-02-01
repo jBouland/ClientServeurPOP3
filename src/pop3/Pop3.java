@@ -22,6 +22,7 @@ public class Pop3
     public final static String HEADER_SUBJECT = "Subject";
     public final static String HEADER_DATE = "Date";
     public final static String HEADER_MESSAGE_ID = "Message-ID";
+    public final static String HEADER_READ = "Read";
     
     public final static String END_OF_MAIL = ".\r\n";
     

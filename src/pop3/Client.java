@@ -3,6 +3,7 @@ package pop3;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -47,7 +48,7 @@ public class Client
     
     // TCP connexion
     private Socket socket = null;
-    private /*BufferedInputStream*/BufferedReader in = null;
+    private BufferedInputStream /*BufferedReader */in = null;
     private DataOutputStream out = null;
     
     // Error management
@@ -79,9 +80,6 @@ public class Client
         System.out.println("Connexion au serveur sur le port " + port + "...");
         try {
             socket = new Socket(hostName, port);
-            //in = new BufferedInputStream(socket.getInputStream());
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            out = new DataOutputStream(socket.getOutputStream());
         } catch (IOException ex) {
             if (ex instanceof SocketException) {
             } else if (ex instanceof UnknownHostException) {
@@ -121,6 +119,9 @@ public class Client
             ResponsePop3 serverResponse = null;
             state = State.WAIT_READY;
             System.out.println("Connection TCP established");
+            in = new BufferedInputStream(socket.getInputStream());
+            //in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new DataOutputStream(socket.getOutputStream());
             
             try {
                 serverResponse = this.readFromServer();
@@ -173,6 +174,59 @@ public class Client
         //this.displayClient();
     }
     
+    private ResponsePop3 readFromServer() throws IOException, Exception
+    {
+        System.out.println("Waiting server...");
+        String response = "";
+        byte[] buffer; // 4096
+        ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+        
+        while (true) {
+            while (in.available() > 0) {
+                int buffersize = in.available();
+                if (buffersize > 4096) {
+                    buffersize = 4096;
+                }
+                buffer = new byte[buffersize];
+                in.read(buffer);
+                byteArray.write(buffer);
+
+                String bufferstring = new String(buffer);
+                response += bufferstring;
+            }
+            if (!response.isEmpty()) {
+                System.out.println(response);
+                return null;
+            }
+        }
+        
+//        if (response.isEmpty()) {
+//            return null;
+//        }
+//        
+//        
+////        
+////        // TODO : Check if that works
+////        int dataRead , i;
+////        ArrayList<Byte> datas = new ArrayList();
+////        //while (in.available() == 0);
+////        while ((dataRead = in.read()) != -1) {
+////            System.out.println(dataRead);
+////            byte b = (byte) dataRead;
+////            datas.add(b);
+////            if (b == -1) break;
+////        }
+////        byte[] data = new byte[datas.size()];
+////        for (i = 0; i < datas.size(); i++) {
+////            data[i] = datas.get(i);
+////        }
+//        
+////        String response = new String(data);
+////        System.out.println(response);
+//
+//        return new ResponsePop3(getExpectedResponseType(), response);
+    }
+
     private void userConnection(String username, String password) throws IOException, Exception
     {
         // TODO MD5
@@ -288,8 +342,6 @@ public class Client
                 userDir.mkdir();
             }
         }
-        
-        
     }
     
     private boolean deleteMail(int id) throws IOException, Exception {
@@ -308,40 +360,6 @@ public class Client
         return retrieveResponse.isOk();
     }
 
-    private ResponsePop3 readFromServer() throws IOException, Exception
-    {
-        System.out.println("Waiting server...");
-        
-        
-//        
-//        // TODO : Check if that works
-//        int dataRead , i;
-//        ArrayList<Byte> datas = new ArrayList();
-//        //while (in.available() == 0);
-//        while ((dataRead = in.read()) != -1) {
-//            System.out.println(dataRead);
-//            byte b = (byte) dataRead;
-//            datas.add(b);
-//            if (b == -1) break;
-//        }
-//        byte[] data = new byte[datas.size()];
-//        for (i = 0; i < datas.size(); i++) {
-//            data[i] = datas.get(i);
-//        }
-        
-        String line, content = "";
-        
-        while ((line = in.readLine()) != null) {
-            System.out.println(line);
-            content += line + "\n";
-        }
-        return new ResponsePop3(getExpectedResponseType(), content);
-//        String response = new String(data);
-//        System.out.println(response);
-
-        //return new ResponsePop3(getExpectedResponseType(), response);
-    }
-    
     private void sendRequest(RequestPop3 request) throws IOException
     {
         out.writeBytes(request.toString());
