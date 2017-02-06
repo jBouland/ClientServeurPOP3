@@ -15,7 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.Timestamp;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -254,16 +255,20 @@ public class Server extends Thread {
             try {
                 user = params.get(0);
                 String pass = params.get(1);
-                byte[] encoded;
-                encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
+                
+                byte[] encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
                 
                 //Create the MD5 to compare with the client
+                String encrypted = "";
+                String password = new String(encoded, "UTF-8");
+                System.out.println(chaineControl + " " + password);
                 chaineControl = chaineControl.concat(new String(encoded, "UTF-8"));
-                byte[] str_code= MessageDigest.getInstance("MD5").digest(chaineControl.getBytes());
-                String passServer;
-                passServer = String.format("%02x", str_code);
-
-                if (pass.equals(passServer)) {
+                byte[] str_code = MessageDigest.getInstance("MD5").digest(chaineControl.getBytes());               
+                for (byte b : str_code) {
+                    encrypted = encrypted + Integer.toHexString(b & 0xFF);
+                }
+                
+                if (pass.equals(encrypted)) {
                     currentState = etat.transaction;
                     return Pop3.OK + " " + user + " authenticated";
                 } else {
@@ -287,7 +292,10 @@ public class Server extends Thread {
         if (currentState == etat.initial) {
             currentState = etat.authorize;
             //Create a timestamp
-            Timestamp timestamp = new Timestamp(new Date(), null);
+            Date d = new Date();
+            //Timestamp timestamp = new Timestamp(new Date(),null);
+            // TODO : Format conforme à la norme ?
+            Long timestamp = d.getTime();
             chaineControl = "<" + timestamp + "@serverTMOJ>";
             System.out.println(chaineControl);
             

@@ -13,6 +13,7 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -96,7 +97,7 @@ public class Client2 extends Thread {
     }   
     
     public boolean isConnected(){
-        if (souche != null){return true;}
+        if (socket != null){return true;}
         return false;
     }
     
@@ -557,8 +558,10 @@ public class Client2 extends Thread {
         String encrypted = "";
         try {
             byte[] printByte = print.getBytes();
-            encrypted = String.format("%02x",MessageDigest.getInstance("MD5").digest(printByte));
-            System.out.println("Encyrpted print : " + encrypted.toString());
+            byte[] bytes = MessageDigest.getInstance("MD5").digest(printByte);
+            for (byte b : bytes) {
+                encrypted = encrypted + Integer.toHexString(b & 0xFF);
+            }
         } catch (Exception ex) {
             Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
         }
