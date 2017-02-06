@@ -1,6 +1,7 @@
 package view;
 
 import javax.swing.SwingUtilities;
+import pop3.Client2;
 
 /**
  * Class Client
@@ -42,9 +43,9 @@ public class ConnectionPane extends javax.swing.JPanel {
         jLabel3.setText("Mot de passe");
 
         jButton1.setText("Se connecter");
-//        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
-//            jButton1ActionPerformed(evt);
-//        });
+        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
+            jButton1ActionPerformed(evt);
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -89,17 +90,24 @@ public class ConnectionPane extends javax.swing.JPanel {
         );
     }
     
-    // TODO : Vérifier si l'adresse saisie est bien au format mail
     // TOOD : Afficher des messages d'erreur si : le serveur est down, adresse/mdp non saisis ou pas reconnus sur le serveur, etc.
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {
-        ClientFrame topFrame = (ClientFrame) SwingUtilities.getWindowAncestor(this);
         String mailUtilisateur = jTextField1.getText();
-        String motDePasse = new String(jPasswordField1.getPassword());
-        System.out.println("User : " + mailUtilisateur);
-        System.out.println("Password : " + motDePasse);
+        String motDePasse = new String(jPasswordField1.getPassword()); 
         
-        if(!(motDePasse.isEmpty()) & !(mailUtilisateur.isEmpty())){
-           topFrame.listeMail(); 
+        if(!mailUtilisateur.isEmpty() && !motDePasse.isEmpty() && mailUtilisateur.contains("@")){
+            ClientFrame topFrame = (ClientFrame) SwingUtilities.getWindowAncestor(this);
+            topFrame.hydrateClientIdentifiers(mailUtilisateur, motDePasse);
+
+            if(topFrame.getClient().isConnected()){
+                topFrame.getClient().serverDialog();
+            } else {
+                topFrame.getClient().localConnection();
+            }
+            topFrame.listeMail(); 
+        } else {
+            System.err.println("Wrong credentials");
         }
+        
     }
 }

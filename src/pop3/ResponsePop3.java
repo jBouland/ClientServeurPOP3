@@ -1,6 +1,7 @@
 
 package pop3;
 
+import java.security.MessageDigest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -17,6 +18,7 @@ public class ResponsePop3
     private ResponseType type = null;
     private String statut = "";
     private String message = "";
+    private String timeStamp = "";
 
     private int nbMails = 0;
     private int mailSize = 0;
@@ -24,7 +26,7 @@ public class ResponsePop3
 
     public enum ResponseType
     {
-        READY_OK(3),
+        READY_OK(2),
         APOP_OK(2),
         STAT_OK(3),
         LIST_OK(3),
@@ -88,6 +90,15 @@ public class ResponsePop3
             case STAT_OK :
                 this.nbMails = Integer.valueOf(parameters[1]);
                 this.mailSize = Integer.valueOf(parameters[2]);
+                break;
+            case READY_OK :
+                if(parameters[1].indexOf('<') != -1 && (parameters[1].indexOf('>') != -1)){
+                    String print = message.substring(parameters[1].indexOf('<'),parameters[1].indexOf('>'));
+                    this.timeStamp = print; 
+                } else {
+                    System.err.println("Server not secured : no timestamp detected"); 
+                }
+                
                 break;
             case LIST_OK:
                 break;
@@ -162,6 +173,10 @@ public class ResponsePop3
 
     public void setMail(Mail mail) {
         this.mail = mail;
+    }
+
+    public String getTimeStamp() {
+        return timeStamp;
     }
     
     @Override

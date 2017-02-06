@@ -1,7 +1,12 @@
 package view;
 
 import java.awt.CardLayout;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JPanel;
+import pop3.Client;
+import pop3.Client2;
+import pop3.Mail;
 
 /**
  * Class Client
@@ -18,6 +23,7 @@ public class ClientFrame extends javax.swing.JFrame  {
     ConnectionPane card1;
     BoiteMailPane card2;
     DetailMailPane card3;
+    Client2 client;
     
     public ClientFrame(){             
         this.setTitle("SuperClientPop3");
@@ -27,12 +33,15 @@ public class ClientFrame extends javax.swing.JFrame  {
         this.setResizable(false);
         this.setDefaultCloseOperation(ClientFrame.EXIT_ON_CLOSE);
         
-        //Create the "cards".
+        // Create the "cards".
         card1 = new ConnectionPane();
         card2 = new BoiteMailPane();
         card3 = new DetailMailPane();
+        
+        // Instanciate client model
+        client = new Client2("localhost", 3000, "userMachin", "test");
 
-        //Create the panel that contains the "cards".
+        // Create the panel that contains the "cards".
         cards = new JPanel(new CardLayout());
         cards.add(card1,"Card 1");
         cards.add(card2,"Card 2");
@@ -44,18 +53,32 @@ public class ClientFrame extends javax.swing.JFrame  {
     
     public void listeMail() {
         CardLayout cl = (CardLayout)(cards.getLayout());
+        card2.hydrateMailsInView();
         cl.show(cards, "Card 2");
     }
     
     public void deconnection(){
+        this.hydrateClientIdentifiers("", "");
         CardLayout cl = (CardLayout)(cards.getLayout());
         cl.show(cards, "Card 1");
     }
     
-    public void detailMail(){
+    public void detailMail(int mailId){
+        Mail m = client.getMails().get(mailId);
+        card3.setMail(m.getFrom(),m.getDate(),m.getSubject(),m.getMessage());
         CardLayout cl = (CardLayout)(cards.getLayout());
         cl.show(cards, "Card 3");
     }
+
+    public Client2 getClient() {
+        return client;
+    }
+    
+    public void hydrateClientIdentifiers(String mail, String password) {
+        String[] userMail = mail.split("@");
+        client.setUsername(userMail[0]);
+        client.setPassword(password);
+    }   
 
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */

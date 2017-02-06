@@ -6,13 +6,11 @@
 
 package view;
 
+import java.util.Map;
+import javax.swing.JTable;
 import javax.swing.SwingUtilities;
-
-/**
- *
- * @author Epulapp
- * 
- */
+import javax.swing.table.DefaultTableModel;
+import pop3.Mail;
 
 public class BoiteMailPane extends javax.swing.JPanel{
     
@@ -21,7 +19,11 @@ public class BoiteMailPane extends javax.swing.JPanel{
     private javax.swing.JLabel jLabel2;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTable jTable1;
-    
+    private static final Object[][] rowData = {};
+    private static final Object[] columnNames = {"id","Emetteur", "Titre", "Date"};
+    private ClientFrame topFrame;
+    private DefaultTableModel listTableModel;
+
     public BoiteMailPane() {
         initComponents();
     }
@@ -39,13 +41,15 @@ public class BoiteMailPane extends javax.swing.JPanel{
         jLabel1.setText("MailBox");
 
         jButton1.setText("Déconnexion");
-       /* jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
-            clicDeconnecter();
-        });*/
+        jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
+             clicDeconnecter();
+         });
         
         // TODO : Boucle de récupération des données du modèle
         // TODO : Mettre les nouveaux messages en gras
-        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+        listTableModel = new DefaultTableModel(rowData, columnNames);
+        
+        /*jTable1.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
                 {"Mélanie", "Coucou !", "12/01/2017"},
                 {"Ophélie", "Projet de JAVA", "11/01/2017"},
@@ -91,7 +95,7 @@ public class BoiteMailPane extends javax.swing.JPanel{
             public boolean isCellEditable(int rowIndex, int columnIndex) {
                 return canEdit [columnIndex];
             }
-        });
+        });*/
         jTable1.getTableHeader().setResizingAllowed(false);
         jTable1.getTableHeader().setReorderingAllowed(false);
         jScrollPane1.setViewportView(jTable1);
@@ -141,14 +145,31 @@ public class BoiteMailPane extends javax.swing.JPanel{
         );
     }
     
-    private void clicDeconnecter() {
-        ClientFrame topFrame = (ClientFrame) SwingUtilities.getWindowAncestor(this);
+    public void hydrateMailsInView(){
+        // Gettong model's mails        
+        if(listTableModel.getRowCount() != 0){
+          for( int i = listTableModel.getRowCount() - 1; i >= 0; i-- ) {
+            listTableModel.removeRow(i);
+            }  
+        }
+        topFrame = (ClientFrame) SwingUtilities.getWindowAncestor(this);
+        topFrame.getClient().readLocalMailsForVIew();
+        Map<Integer, Mail> mails = topFrame.getClient().getMails();
+        for (Mail mail : mails.values()){
+            listTableModel.addRow(new Object[]{mail.getMessageID(),mail.getFrom(), mail.getSubject(), mail.getDate()});
+        }
+        jTable1.setModel(listTableModel);
+    }
+    
+    private void clicDeconnecter() {        
         topFrame.deconnection();
     }
     
     private void clicMail() {
         ClientFrame topFrame = (ClientFrame) SwingUtilities.getWindowAncestor(this);
-        topFrame.detailMail();
+        int row_index = jTable1.getSelectedRow();
+        //jTable1.getModel().getValueAt(row_index, 0);
+        topFrame.detailMail((Integer) jTable1.getModel().getValueAt(row_index,0));
     }
     
 }

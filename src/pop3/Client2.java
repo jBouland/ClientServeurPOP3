@@ -12,11 +12,16 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import pop3.ResponsePop3.ResponseType;
 
 public class Client2 extends Thread {
@@ -42,8 +47,10 @@ public class Client2 extends Thread {
     private boolean connectionClose = false;
     private int currentMail = 1;
     private boolean userConnected = false;
-    
+    private String timeStamp = "";
+    private SSLSocketFactory factory;
     private Socket socket = null;
+    SSLSocket souche;
     private BufferedInputStream /*BufferedReader */in = null;
     private DataOutputStream out = null;
     
@@ -57,15 +64,147 @@ public class Client2 extends Thread {
         quit
     };
 
-    private Client2(String hostName, int port, String login, String password) {
+    public Client2(String hostName, int port, String login, String password) {
         this.username = login;
         this.password = password;
         try {
+            // Secure socket instanciation
+            /*factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            souche = (SSLSocket) factory. createSocket (hostName, port);
+            // Chosing cipher suite beyond the ones availible on socket
+            souche.getEnabledCipherSuites();
+            String[] enCiphersuite = souche.getEnabledCipherSuites();
+            souche.setEnabledCipherSuites(enCiphersuite);
+            souche.startHandshake();*/
             socket = new Socket(hostName, port);
             currentState = State.initial;
         } catch (IOException ex) {
             System.err.println(ex.getMessage());
         }
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Map<Integer, Mail> getMails() {
+        return mails;
+    }   
+    
+    public boolean isConnected(){
+        if (souche != null){return true;}
+        return false;
+    }
+    
+    public void serverDialog(){
+        try {
+            System.out.println("Connexion serveur réussie sur le port " + socket.getPort());            
+            ResponsePop3 responsePop = null;
+            
+            in = new BufferedInputStream(socket.getInputStream());
+            out = new DataOutputStream(socket.getOutputStream());
+            
+            System.out.println("Waiting server...");
+            while (!connectionClose) { // Boucle de communication serveur
+                
+                String serverResponse = readFromServer();
+                if (serverResponse.isEmpty()) {
+                    continue;
+                }
+                
+                System.out.println(serverResponse);
+                responsePop = new ResponsePop3(expected, serverResponse);
+                
+                switch (currentState) {
+                    case initial:
+                        if (responsePop.isOk()) {
+                            System.out.println("Tentative de connexion de " + username + ":" + password);
+                            timeStamp = responsePop.getTimeStamp();
+                            if(!timeStamp.isEmpty()){
+                                password = encodeMD5(timeStamp.concat(password)); 
+                            }
+                            this.sendApop(username, password);
+                            currentState = State.apop;
+                            expected = ResponseType.APOP_OK;
+                        } else if (responsePop.isErr()) {
+                            responsePop.getMessage();
+                        }
+                        break;
+                    case apop:
+                        if (responsePop.isOk()) {
+                            System.out.println("Utilisateur " + username + " authentifié avec succès.");
+                            this.createLocalUserDirectory(username, password);
+                            this.sendStat();
+                            userConnected = true;
+                            currentState = State.retrieve;
+                            expected = ResponseType.STAT_OK;
+                        } else if (responsePop.isErr()) {
+                            this.sendQuit();
+                            currentState = State.quit;
+                            expected = ResponseType.QUIT_OK;
+                        }
+                        break;
+                    case retrieve:
+                        switch (responsePop.getType()) {
+                            case STAT_OK:
+                                //System.out.println("Stat OK : " + responsePop.getNbMails());
+                                nbMails = responsePop.getNbMails();
+                                this.sendRetrieve(currentMail);
+                                currentMail++;
+                                expected = ResponseType.RETR_OK;
+                                break;
+                            case RETR_OK:
+                                Mail mail = responsePop.getMail();
+                                mail.setMessageID(currentMail - 1);
+                                
+                                // TODO save mail in local folder:
+                                this.createLocalMail(mail);
+                                
+                                // TODO send Delete request if deleteable true
+                                if (deletable) {
+                                    this.sendDelete(mail.getMessageID());
+                                    currentState = State.delete;
+                                    expected = ResponseType.DELE_OK;
+                                } else {
+                                    // Retrieve other mails
+                                    this.sendRetrieveOrQuit();
+                                }
+                                break;
+                            case ERR:
+                                System.err.println(responsePop.getMessage());
+                                break;
+                        }
+                        break;
+                    case delete:
+                        if (responsePop.isOk()) {
+                            this.sendRetrieveOrQuit();
+                        }
+                        break;
+                    case quit:
+                        if (responsePop.isOk()) {
+                            connectionClose = true;
+                        }
+                        break;
+                }
+                
+                if (connectionClose) {
+                    in.close();
+                    out.close();
+                    socket.close();
+                }
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void localConnection(){
+        System.out.println("Lecture des mails locaux :");
+        this.readLocalMails();
     }
     
     @Override
@@ -102,6 +241,10 @@ public class Client2 extends Thread {
                         case initial:
                             if (responsePop.isOk()) {
                                 System.out.println("Tentative de connexion de " + username + ":" + password);
+                                timeStamp = responsePop.getTimeStamp();
+                                if(!timeStamp.isEmpty() ){
+                                   password = encodeMD5(timeStamp.concat(password)); 
+                                }                                
                                 this.sendApop(username, password);
                                 currentState = State.apop;
                                 expected = ResponseType.APOP_OK;
@@ -181,6 +324,7 @@ public class Client2 extends Thread {
                 username = sc.nextLine();
                 System.out.println("Mot de passe : ");
                 password = sc.nextLine();
+                //password = encodeMD5(timeStamp.concat(password));
                 if (!this.localUserConnection(username, password)) {
                     System.err.println("Mot de passe incorrect");
                     return;
@@ -377,6 +521,10 @@ public class Client2 extends Thread {
             Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+    
+    public void readLocalMailsForVIew(){
+        this.readLocalMails();
+    }
 
     private String readFromServer()
     {
@@ -402,5 +550,18 @@ public class Client2 extends Thread {
         }
         
         return response;
+    }
+    
+    private String encodeMD5(String print)
+    {
+        String encrypted = "";
+        try {
+            byte[] printByte = print.getBytes();
+            encrypted = String.format("%02x",MessageDigest.getInstance("MD5").digest(printByte));
+            System.out.println("Encyrpted print : " + encrypted.toString());
+        } catch (Exception ex) {
+            Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return encrypted;
     }
 }
