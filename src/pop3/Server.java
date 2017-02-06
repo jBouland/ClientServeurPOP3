@@ -13,8 +13,12 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,6 +38,8 @@ public class Server extends Thread {
         transaction,
         update
     };
+    
+    private String chaineControl;
 
     private int port;
     private etat currentState = etat.initial;
@@ -250,8 +256,14 @@ public class Server extends Thread {
                 String pass = params.get(1);
                 byte[] encoded;
                 encoded = Files.readAllBytes(Paths.get(user + "/password.txt"));
+                
+                //Create the MD5 to compare with the client
+                chaineControl = chaineControl.concat(new String(encoded, "UTF-8"));
+                byte[] str_code= MessageDigest.getInstance("MD5").digest(chaineControl.getBytes());
+                String passServer;
+                passServer = String.format("%02x", str_code);
 
-                if (pass.equals(new String(encoded, "UTF-8"))) {
+                if (pass.equals(passServer)) {
                     currentState = etat.transaction;
                     return Pop3.OK + " " + user + " authenticated";
                 } else {
@@ -264,6 +276,8 @@ public class Server extends Thread {
                     System.err.println("APOP requires 2 parameters : user and password");
                 }
                 return Pop3.ERR + " Authentication failed";
+            } catch (NoSuchAlgorithmException ex) {
+                Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
         return Pop3.ERR + " wrong current state";
@@ -272,7 +286,12 @@ public class Server extends Thread {
     private String readyAction() {
         if (currentState == etat.initial) {
             currentState = etat.authorize;
-            return Pop3.OK + " POP3 server ready";
+            //Create a timestamp
+            Timestamp timestamp = new Timestamp(new Date(), null);
+            chaineControl = "<" + timestamp + "@serverTMOJ>";
+            System.out.println(chaineControl);
+            
+            return Pop3.OK + " POP3 server ready " + chaineControl;
         }
         return Pop3.ERR + " wrong current state";
     }
