@@ -22,6 +22,10 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.crypto.CipherInputStream;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import sun.security.ssl.SSLServerSocketFactoryImpl;
 
 /**
  * Class Server
@@ -57,19 +61,25 @@ public class Server extends Thread {
     @Override
     public void run() {
         try {
+            
+            SSLServerSocketFactory fab = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+            SSLServerSocket myserver = (SSLServerSocket) fab.createServerSocket(port);
+            myserver.setEnabledCipherSuites(getanonCiphers(myserver));
+            
             // Initialization
-            ServerSocket welcomeSocket = new ServerSocket(port);
+             //welcomeSocket = new ServerSocket(port);
             Socket connectionSocket = null;
             while (true) {
 
                 if (connectionSocket == null) {
-                    connectionSocket = welcomeSocket.accept();
+                    connectionSocket = myserver.accept();
                     System.out.println("Connection acceptée !");
                     currentState = etat.initial;
                     closeConnection = false;
                     sendMessage(connectionSocket, readyAction());
                 }
 
+                
                 BufferedReader in = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
 
                 String response = "undefined";
@@ -122,6 +132,8 @@ public class Server extends Thread {
             if (ex instanceof SocketException) {
                 System.err.println("Connexion interrompue par le client");
             }
+        } catch (Exception ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -319,4 +331,23 @@ public class Server extends Thread {
         }
 
     }
+    
+    private String[] getanonCiphers(SSLServerSocket srv){
+        int size =  srv.getSupportedCipherSuites().length;
+        ArrayList supportedCiphers = new ArrayList();
+        for(int i=0; i < size; i++){
+            String cipher = srv.getSupportedCipherSuites()[i].toString();
+            if(cipher.contains("_anon_")){
+                supportedCiphers.add(srv.getSupportedCipherSuites()[i].toString());
+            }
+        }
+        String[] a = new String[supportedCiphers.size()];
+        supportedCiphers.toArray(a);
+        
+        return a;
+    }
+    
+    
+    
+    
 }
