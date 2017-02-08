@@ -9,18 +9,14 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import pop3.ResponsePop3.ResponseType;
@@ -28,6 +24,7 @@ import pop3.ResponsePop3.ResponseType;
 public class Client2 extends Thread {
     
     private final static String CLIENT_HOME_DIR = "\\ClientHome\\";
+    private final static String CIPHER_SUITE = "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5";
 
     public static void main(String[] args) {
         try {
@@ -51,8 +48,8 @@ public class Client2 extends Thread {
     private String timeStamp = "";
     private SSLSocketFactory factory;
     private Socket socket = null;
-    SSLSocket souche;
-    private BufferedInputStream /*BufferedReader */in = null;
+    private SSLSocket souche = null;
+    private BufferedInputStream in = null;
     private DataOutputStream out = null;
     
     private enum State {
@@ -69,15 +66,13 @@ public class Client2 extends Thread {
         this.username = login;
         this.password = password;
         try {
-            // Secure socket instanciation
-            /*factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            //Secure socket instanciation
+            factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
             souche = (SSLSocket) factory. createSocket (hostName, port);
-            // Chosing cipher suite beyond the ones availible on socket
-            souche.getEnabledCipherSuites();
-            String[] enCiphersuite = souche.getEnabledCipherSuites();
-            souche.setEnabledCipherSuites(enCiphersuite);
-            souche.startHandshake();*/
-            socket = new Socket(hostName, port);
+            // Chosing cipher suite beyond the ones availible on socket            
+            souche.setEnabledCipherSuites(new String[] {CIPHER_SUITE});
+      
+            //socket = new Socket(hostName, port);
             currentState = State.initial;
         } catch (IOException ex) {
             System.err.println(ex.getMessage());
@@ -97,17 +92,17 @@ public class Client2 extends Thread {
     }   
     
     public boolean isConnected(){
-        if (socket != null){return true;}
+        if (souche != null){return true;}
         return false;
     }
     
     public void serverDialog(){
         try {
-            System.out.println("Connexion serveur réussie sur le port " + socket.getPort());            
+            System.out.println("Connexion serveur réussie sur le port " + souche.getPort());            
             ResponsePop3 responsePop = null;
             
-            in = new BufferedInputStream(socket.getInputStream());
-            out = new DataOutputStream(socket.getOutputStream());
+            in = new BufferedInputStream(souche.getInputStream());
+            out = new DataOutputStream(souche.getOutputStream());
             
             System.out.println("Waiting server...");
             while (!connectionClose) { // Boucle de communication serveur
@@ -195,7 +190,7 @@ public class Client2 extends Thread {
                 if (connectionClose) {
                     in.close();
                     out.close();
-                    socket.close();
+                    souche.close();
                 }
             }
         } catch (IOException ex) {
@@ -206,169 +201,6 @@ public class Client2 extends Thread {
     public void localConnection(){
         System.out.println("Lecture des mails locaux :");
         this.readLocalMails();
-    }
-    
-    @Override
-    public void run()
-    {
-        try {
-            if (socket != null) {
-                System.out.println("Connexion serveur réussie sur le port " + socket.getPort());
-
-                // Informations de connexion utilisateur
-                Scanner sc = new Scanner(System.in);
-                System.out.println("Login : ");
-                username = sc.nextLine();
-                System.out.println("Mot de passe : ");
-                password = sc.nextLine();
-
-                ResponsePop3 responsePop = null;
-
-                in = new BufferedInputStream(socket.getInputStream());
-                out = new DataOutputStream(socket.getOutputStream());
-
-                System.out.println("Waiting server...");
-                while (!connectionClose) { // Boucle de communication serveur
-
-                    String serverResponse = readFromServer();
-                    if (serverResponse.isEmpty()) {
-                        continue;
-                    }
-
-                    System.out.println(serverResponse);
-                    responsePop = new ResponsePop3(expected, serverResponse);
-
-                    switch (currentState) {
-                        case initial:
-                            if (responsePop.isOk()) {
-                                System.out.println("Tentative de connexion de " + username + ":" + password);
-                                timeStamp = responsePop.getTimeStamp();
-                                if(!timeStamp.isEmpty() ){
-                                   password = encodeMD5(timeStamp.concat(password)); 
-                                }                                
-                                this.sendApop(username, password);
-                                currentState = State.apop;
-                                expected = ResponseType.APOP_OK;
-                            } else if (responsePop.isErr()) {
-                                responsePop.getMessage();
-                            }
-                            break;
-                        case apop:
-                            if (responsePop.isOk()) {
-                                System.out.println("Utilisateur " + username + " authentifié avec succès.");
-                                this.createLocalUserDirectory(username, password);
-                                this.sendStat();
-                                userConnected = true;
-                                currentState = State.retrieve;
-                                expected = ResponseType.STAT_OK;
-                            } else if (responsePop.isErr()) {
-                                this.sendQuit();
-                                currentState = State.quit;
-                                expected = ResponseType.QUIT_OK;
-                            }
-                            break;
-                        case retrieve:
-                            switch (responsePop.getType()) {
-                                case STAT_OK:
-                                    //System.out.println("Stat OK : " + responsePop.getNbMails());
-                                    nbMails = responsePop.getNbMails();
-                                    this.sendRetrieve(currentMail);
-                                    currentMail++;
-                                    expected = ResponseType.RETR_OK;
-                                    break;
-                                case RETR_OK:
-                                    Mail mail = responsePop.getMail();
-                                    mail.setMessageID(currentMail - 1);
-                                    
-                                    // TODO save mail in local folder:
-                                    this.createLocalMail(mail);
-
-                                    // TODO send Delete request if deleteable true
-                                    if (deletable) {
-                                        this.sendDelete(mail.getMessageID());
-                                        currentState = State.delete;
-                                        expected = ResponseType.DELE_OK;
-                                    } else {
-                                        // Retrieve other mails
-                                        this.sendRetrieveOrQuit();
-                                    }
-                                    break;
-                                case ERR:
-                                    System.err.println(responsePop.getMessage());
-                                    break;
-                            }
-                            break;
-                        case delete:
-                            if (responsePop.isOk()) {
-                                this.sendRetrieveOrQuit();
-                            }
-                            break;
-                        case quit:
-                            if (responsePop.isOk()) {
-                                connectionClose = true;
-                            }
-                            break;
-                    }
-                    
-                    if (connectionClose) {
-                        in.close();
-                        out.close();
-                        socket.close();
-                    }
-                }
-            }
-            
-            if (!userConnected) {
-                System.out.println("Connexion en local...");
-                Scanner sc = new Scanner(System.in);
-                System.out.println("Login : ");
-                username = sc.nextLine();
-                System.out.println("Mot de passe : ");
-                password = sc.nextLine();
-                //password = encodeMD5(timeStamp.concat(password));
-                if (!this.localUserConnection(username, password)) {
-                    System.err.println("Mot de passe incorrect");
-                    return;
-                }
-            }
-
-            System.out.println("Lecture des mails locaux :");
-            // TODO handle local mails
-            this.readLocalMails();
-
-            // Lecture des mails
-            if (mails.size() > 0) {
-                int current = 0;
-                Scanner scanner = new Scanner(System.in);
-                do {
-                    for (Mail mail : mails.values()) {
-                        System.out.print(mail.getMessageID() + " - " + mail.getSubject());
-
-                        if (mail.isRead()) {
-                            System.out.println(" [LU]");
-                        }
-                    }
-                    System.out.println("Choisissez le numéro du mail à lire (0 pour quitter): ");
-                    current = scanner.nextInt();
-
-                    if (mails.containsKey(current)) {
-                        System.out.println("==========================");
-                        System.out.println(mails.get(current).toString());
-                        System.out.println("==========================");
-                    } else if (current != 0) {
-                        System.err.println("Numéro invalide");
-                    }
-                } while (current != 0);
-            } else {
-                System.out.println("Aucun message dans la boite locale.");
-            }
-        } catch (IOException ex) {
-            if (ex instanceof SocketException) {
-                System.err.println("Connexion interrompue par le serveur");
-            } else {
-                System.err.println(ex.getMessage());
-            }
-        }
     }
     
     private void sendApop(String login, String pass)
@@ -566,5 +398,22 @@ public class Client2 extends Thread {
             Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
         }
         return encrypted;
+    }
+    
+       private String[] getanonCiphers(SSLSocket srv){
+        int size =  srv.getSupportedCipherSuites().length;
+        ArrayList supportedCiphers = new ArrayList();
+        for(int i=0; i < size; i++){
+            String cipher = srv.getSupportedCipherSuites()[i];
+            if(cipher.contains("_anon_")){
+                supportedCiphers.add(cipher);
+            }
+        }
+        String[] a = new String[supportedCiphers.size()];
+        supportedCiphers.toArray(a);
+        for(int i = 0; i < supportedCiphers.size(); i++){
+            System.out.println("Client :"+supportedCiphers.get(i));
+        }
+        return a;
     }
 }

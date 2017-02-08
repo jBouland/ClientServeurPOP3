@@ -1,31 +1,27 @@
 
 package pop3;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.crypto.CipherInputStream;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
-import sun.security.ssl.SSLServerSocketFactoryImpl;
+import javax.net.ssl.SSLSocket;
 
 /**
  * Class Server
@@ -36,7 +32,8 @@ import sun.security.ssl.SSLServerSocketFactoryImpl;
  * @author Ophélie EOUZAN
  */
 public class Server extends Thread {
-
+    private final static String CIPHER_SUITE = "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5";
+    
     private enum etat {
         initial,
         authorize,
@@ -49,6 +46,8 @@ public class Server extends Thread {
     private int port;
     private etat currentState = etat.initial;
     private boolean closeConnection = false;
+    private SSLServerSocket souche;
+    SSLSocket socket;
 
     private String user = "undefined";
     private ArrayList<Mail> listMail = new ArrayList();
@@ -60,27 +59,28 @@ public class Server extends Thread {
 
     @Override
     public void run() {
-        try {
-            
+        try {            
             SSLServerSocketFactory fab = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-            SSLServerSocket myserver = (SSLServerSocket) fab.createServerSocket(port);
-            myserver.setEnabledCipherSuites(getanonCiphers(myserver));
-            
-            // Initialization
-             //welcomeSocket = new ServerSocket(port);
-            Socket connectionSocket = null;
-            while (true) {
+            souche = (SSLServerSocket) fab.createServerSocket(port);            
+            souche.setEnabledCipherSuites(new String[] {CIPHER_SUITE});
 
-                if (connectionSocket == null) {
-                    connectionSocket = myserver.accept();
+            SSLSocket socket = null;
+            // Initialization
+            //welcomeSocket = new ServerSocket(port);
+            //Socket connectionSocket = null;
+            while (true) {
+                if (socket == null) {
+                    
+                    socket = (SSLSocket) souche.accept();
+                    System.out.println(socket);
+                    System.out.println(socket.getEnabledCipherSuites()[0]);
                     System.out.println("Connection acceptée !");
                     currentState = etat.initial;
                     closeConnection = false;
-                    sendMessage(connectionSocket, readyAction());
+                    sendMessage(socket, readyAction());
                 }
-
-                
-                BufferedReader in = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
+                System.out.println("zejkdgzedjh");
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
                 String response = "undefined";
                 String stringifiedMessage;
@@ -117,12 +117,14 @@ public class Server extends Thread {
                             break;
                     }
                     if (!response.equals("undefined")) {
-                        sendMessage(connectionSocket, response);
+                        sendMessage(socket, response);
                     }
 
                     if (closeConnection) {
-                        connectionSocket.close();
-                        connectionSocket = null;
+                        socket.close();
+                        socket = null;
+                        souche.close();
+                        souche = null;
                         //welcomeSocket.close();
                     }
                 }
@@ -316,18 +318,19 @@ public class Server extends Thread {
         return Pop3.ERR + " wrong current state";
     }
 
-    private void sendMessage(Socket connectionSocket, String msg) {
-        PrintWriter writeSock = null;
+    private void sendMessage(SSLSocket connectionSocket, String msg) {
+        OutputStream out = null;
         try {
             msg += "\r\n";
-            System.out.println(msg);
-            writeSock = new PrintWriter(connectionSocket.getOutputStream());
-            OutputStream out = connectionSocket.getOutputStream();
-            out.write(msg.getBytes("UTF-8"));
-            out.flush();
+            System.out.println(msg);            
+            out = connectionSocket.getOutputStream();
+            BufferedWriter w = new BufferedWriter(new OutputStreamWriter(out));
+            w.write(msg,0,msg.length());
+            System.out.println("nylull2");
+            w.flush();
+            System.out.println("nylull3");
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
         }
 
     }
@@ -336,14 +339,16 @@ public class Server extends Thread {
         int size =  srv.getSupportedCipherSuites().length;
         ArrayList supportedCiphers = new ArrayList();
         for(int i=0; i < size; i++){
-            String cipher = srv.getSupportedCipherSuites()[i].toString();
+            String cipher = srv.getSupportedCipherSuites()[i];
             if(cipher.contains("_anon_")){
-                supportedCiphers.add(srv.getSupportedCipherSuites()[i].toString());
+                supportedCiphers.add(cipher);
             }
         }
         String[] a = new String[supportedCiphers.size()];
         supportedCiphers.toArray(a);
-        
+        for(int i = 0; i < supportedCiphers.size(); i++){
+            System.out.println("Server" + supportedCiphers.get(i));
+        }
         return a;
     }
     
