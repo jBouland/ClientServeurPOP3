@@ -1,6 +1,9 @@
 
 package pop3;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Class ResponsePop3
  * 
@@ -14,6 +17,7 @@ public class ResponsePop3
     private ResponseType type = null;
     private String statut = "";
     private String message = "";
+    private String timeStamp = "";
 
     private int nbMails = 0;
     private int mailSize = 0;
@@ -21,6 +25,7 @@ public class ResponsePop3
 
     public enum ResponseType
     {
+        READY_OK(2),
         APOP_OK(2),
         STAT_OK(3),
         LIST_OK(3),
@@ -29,7 +34,7 @@ public class ResponsePop3
         QUIT_OK(2),
         ERR(2);
         
-        private final int nbParts;
+        public final int nbParts;
         
         private ResponseType(int nbParts)
         {
@@ -49,66 +54,76 @@ public class ResponsePop3
         this.statut = statut; // Pop3.OK OU Pop3.ERR
         this.message = message;
     }
-    
-    /**
-     * Constructor to retrieve message
-     * @param type
-     * @param message 
-     * @throws java.lang.Exception 
-     */
-    public ResponsePop3(ResponseType type, String message) throws Exception
+
+    public ResponsePop3(ResponseType type, String message)
     {
-        String[] rawMessage = message.split(Pop3.SEPARATOR);
+        try {
+            this.hydrateResponse(type, message);
+        } catch (Exception ex) {
+            Logger.getLogger(ResponsePop3.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    private void hydrateResponse(ResponseType responseType, String message) throws Exception
+    {
+        String[] rawResponse = message.split(Pop3.LINE_SEPARATOR);
         
-        if (!rawMessage[0].equalsIgnoreCase(Pop3.OK) && !rawMessage[0].equalsIgnoreCase(Pop3.ERR)) {
+        // Read first line
+        String[] rawFirstLine = rawResponse[0].split(Pop3.SEPARATOR);
+        if (!rawFirstLine[0].equalsIgnoreCase(Pop3.OK) && !rawFirstLine[0].equalsIgnoreCase(Pop3.ERR)) {
             // Error
             throw new Exception("Le format de la réponse est invalide.");
         }
 
-        statut = rawMessage[0];
-        
+        // Setting message statut
+        statut = rawFirstLine[0];
         if (statut.equalsIgnoreCase(Pop3.ERR)) {
-            this.type = ResponseType.ERR;
+            type = ResponseType.ERR;
         } else {
-            this.type = type;
+            type = responseType;
         }
-        
+
         // Hydrating response
-        String[] parameters = message.split(Pop3.SEPARATOR, type.nbParts);
+        String[] parameters = rawResponse[0].split(Pop3.SEPARATOR, type.nbParts);
         switch (type) {
             case STAT_OK :
                 this.nbMails = Integer.valueOf(parameters[1]);
                 this.mailSize = Integer.valueOf(parameters[2]);
                 break;
+            case READY_OK :
+                String[] params = parameters[1].split(" ");
+                if(params[3].indexOf('<') != -1 && (params[3].indexOf('>') != -1)){
+                    String print = params[3];
+                    this.timeStamp = print; 
+                } else {
+                    System.err.println("Server not secured : no timestamp detected"); 
+                }                
+                break;
             case LIST_OK:
+                break;
             case RETR_OK:
                 this.mailSize = Integer.valueOf(parameters[1]);
-                this.mail = this.hydrateMail(parameters[type.nbParts - 1]);
+                // Hydrating mail
+                String mailString = message.substring(rawResponse[0].length() + Pop3.LINE_SEPARATOR.length());
+                this.mail = new Mail(mailString);
+                break;
             case DELE_OK:
                 this.nbMails = Integer.valueOf(parameters[2]);
                 break;
-            default:
+            default: // ERR, LIST, QUIT_OK...
                 this.message = parameters[1];
                 break;
         }
     }
     
-    @Override
-    public String toString()
+    public boolean isOk()
     {
-        String s = "";
-        
-        switch (type) {
-            case ERR :
-                s += this.statut + " " + this.message;
-                break;
-            case APOP_OK:
-                s += this.statut + " " + this.message;
-                break;
-            // TODO all cases
-        }
-        
-        return s;
+        return statut.equalsIgnoreCase(Pop3.OK);
+    }
+    
+    public boolean isErr()
+    {
+        return statut.equalsIgnoreCase(Pop3.ERR);
     }
 
     public ResponseType getType() {
@@ -150,16 +165,6 @@ public class ResponsePop3
     public void setMailSize(int mailSize) {
         this.mailSize = mailSize;
     }
-    
-    public boolean isOk()
-    {
-        return statut.equalsIgnoreCase(Pop3.OK);
-    }
-    
-    public boolean isErr()
-    {
-        return statut.equalsIgnoreCase(Pop3.ERR);
-    }
 
     public Mail getMail() {
         return mail;
@@ -168,10 +173,26 @@ public class ResponsePop3
     public void setMail(Mail mail) {
         this.mail = mail;
     }
+
+    public String getTimeStamp() {
+        return timeStamp;
+    }
     
-    private Mail hydrateMail(String data) {
-        Mail mail = new Mail(data);
+    @Override
+    public String toString()
+    {
+        String s = "";
         
-        return mail;
+        switch (type) {
+//            case ERR :
+//                break;
+//            case APOP_OK:
+//                break;
+            default:
+                s += this.statut + Pop3.SEPARATOR + this.message + Pop3.LINE_SEPARATOR;
+            // TODO all cases
+        }
+        
+        return s;
     }
 }
