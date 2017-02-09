@@ -1,10 +1,7 @@
 package view;
 
 import java.awt.CardLayout;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JPanel;
-import pop3.Client;
 import pop3.Client2;
 import pop3.Mail;
 
@@ -37,9 +34,6 @@ public class ClientFrame extends javax.swing.JFrame  {
         card1 = new ConnectionPane();
         card2 = new BoiteMailPane();
         card3 = new DetailMailPane();
-        
-        // Instanciate client model
-        client = new Client2("localhost", 3000, "userMachin", "test");
 
         // Create the panel that contains the "cards".
         cards = new JPanel(new CardLayout());
@@ -58,7 +52,10 @@ public class ClientFrame extends javax.swing.JFrame  {
     }
     
     public void deconnection(){
-        this.hydrateClientIdentifiers("", "");
+        client.close();
+        client = null;
+        card1.setjPasswordField1("");
+        card1.setjTextField1("");
         CardLayout cl = (CardLayout)(cards.getLayout());
         cl.show(cards, "Card 1");
     }
@@ -75,10 +72,12 @@ public class ClientFrame extends javax.swing.JFrame  {
     }
     
     public void hydrateClientIdentifiers(String mail, String password) {
+        // Instanciate client model
+        client = new Client2("localhost", 3000, "userMachin", "test");
         String[] userMail = mail.split("@");
         client.setUsername(userMail[0]);
         client.setPassword(password);
-    }   
+    }
 
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */

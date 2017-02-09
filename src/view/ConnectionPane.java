@@ -1,7 +1,7 @@
 package view;
 
+import javax.swing.JCheckBox;
 import javax.swing.SwingUtilities;
-import pop3.Client2;
 
 /**
  * Class Client
@@ -20,6 +20,16 @@ public class ConnectionPane extends javax.swing.JPanel {
     private javax.swing.JLabel jLabel3;
     private javax.swing.JTextField jTextField1;
     private javax.swing.JPasswordField jPasswordField1;
+    private javax.swing.JCheckBox checkbox;
+
+    public void setjTextField1(String s) {
+        jTextField1.setText(s);
+        
+    }
+
+    public void setjPasswordField1(String s) {
+        jPasswordField1.setText(s);
+    }
     
     public ConnectionPane() {
         initComponents();
@@ -46,6 +56,9 @@ public class ConnectionPane extends javax.swing.JPanel {
         jButton1.addActionListener((java.awt.event.ActionEvent evt) -> {
             jButton1ActionPerformed(evt);
         });
+        
+        checkbox = new JCheckBox("Delete messages on server");
+        checkbox.setSelected(false);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -88,6 +101,7 @@ public class ConnectionPane extends javax.swing.JPanel {
                 .addComponent(jButton1)
                 .addContainerGap(121, Short.MAX_VALUE))
         );
+        layout.addLayoutComponent(checkbox, this);
     }
     
     // TOOD : Afficher des messages d'erreur si : le serveur est down, adresse/mdp non saisis ou pas reconnus sur le serveur, etc.

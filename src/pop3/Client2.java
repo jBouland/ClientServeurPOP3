@@ -3,6 +3,7 @@ package pop3;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,19 +14,16 @@ import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import pop3.ResponsePop3.ResponseType;
 
-public class Client2 extends Thread {
+public class Client2 extends Thread implements Closeable {
     
     private final static String CLIENT_HOME_DIR = "\\ClientHome\\";
 
@@ -69,14 +67,6 @@ public class Client2 extends Thread {
         this.username = login;
         this.password = password;
         try {
-            // Secure socket instanciation
-            /*factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-            souche = (SSLSocket) factory. createSocket (hostName, port);
-            // Chosing cipher suite beyond the ones availible on socket
-            souche.getEnabledCipherSuites();
-            String[] enCiphersuite = souche.getEnabledCipherSuites();
-            souche.setEnabledCipherSuites(enCiphersuite);
-            souche.startHandshake();*/
             socket = new Socket(hostName, port);
             currentState = State.initial;
         } catch (IOException ex) {
@@ -325,7 +315,7 @@ public class Client2 extends Thread {
                 username = sc.nextLine();
                 System.out.println("Mot de passe : ");
                 password = sc.nextLine();
-                //password = encodeMD5(timeStamp.concat(password));
+                password = encodeMD5(timeStamp.concat(password));
                 if (!this.localUserConnection(username, password)) {
                     System.err.println("Mot de passe incorrect");
                     return;
@@ -566,5 +556,26 @@ public class Client2 extends Thread {
             Logger.getLogger(Client2.class.getName()).log(Level.SEVERE, null, ex);
         }
         return encrypted;
+    }
+    
+    @Override
+    public void close()
+    {
+        System.out.println("closing client");
+        if (in != null) {
+            try {
+                in.close();
+            } catch (IOException e) {}
+        }
+        if (out != null) {
+            try {
+                out.close();
+            } catch (IOException e) {}
+        }
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException e) {}
+        }
     }
 }
